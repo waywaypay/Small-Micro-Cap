@@ -74,20 +74,27 @@ class HttpCompanyFactsProvider:
         import urllib.request
 
         cik_int = int(cik)
+        cpath = None
         if self.cache_dir:
             cpath = os.path.join(self.cache_dir, f"CIK{cik_int:010d}.json")
             if os.path.exists(cpath):
-                with open(cpath, "r", encoding="utf-8") as fh:
-                    return json.load(fh)
+                try:
+                    with open(cpath, "r", encoding="utf-8") as fh:
+                        return json.load(fh)
+                except (json.JSONDecodeError, OSError):
+                    pass  # corrupt/partial cache (e.g. interrupted write) -> refetch
         url = self.BASE.format(cik=cik_int)
         req = urllib.request.Request(url, headers={"User-Agent": self.user_agent})
         time.sleep(self.min_interval_s)  # fair-access throttle
         with urllib.request.urlopen(req, timeout=30) as resp:
             data = json.loads(resp.read().decode("utf-8"))
-        if self.cache_dir:
+        if cpath:
             os.makedirs(self.cache_dir, exist_ok=True)
-            with open(cpath, "w", encoding="utf-8") as fh:
+            # Write atomically so a concurrent reader never sees a partial file.
+            tmp = f"{cpath}.{os.getpid()}.tmp"
+            with open(tmp, "w", encoding="utf-8") as fh:
                 json.dump(data, fh)
+            os.replace(tmp, cpath)
         return data
 
     def get_company_facts(self, ticker: str, cik: Optional[str]) -> CompanyFacts:

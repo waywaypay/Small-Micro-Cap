@@ -80,15 +80,27 @@ def cmd_run(args) -> int:
         from .events import FixtureEventProvider
         eprov = FixtureEventProvider(args.events_dir)
     cards = []
-    for ticker, cik in sorted(universe.items()):
-        facts = provider.get_company_facts(ticker, cik)
-        events = eprov.get_events(ticker, cik) if (eprov and eprov.has(ticker)) else None
-        cards.append(score_company(facts, as_of, cfg, events=events))
+    skipped = []
+    total = len(universe)
+    for i, (ticker, cik) in enumerate(sorted(universe.items()), 1):
+        try:
+            facts = provider.get_company_facts(ticker, cik)
+            events = eprov.get_events(ticker, cik) if (eprov and eprov.has(ticker)) else None
+            cards.append(score_company(facts, as_of, cfg, events=events))
+        except Exception as exc:  # one bad name must not abort the whole universe
+            skipped.append(ticker)
+            print(f"  [skip] {ticker} (CIK {cik}): {type(exc).__name__}: {exc}",
+                  file=sys.stderr)
+        if total > 1 and (i % 100 == 0 or i == total):
+            print(f"  …{i}/{total} screened ({len(skipped)} skipped)", file=sys.stderr)
 
     write_sqlite(cards, cfg, args.db)
     write_json(cards, cfg, args.json)
     _print_table(cards, cfg)
     print(f"\nWrote {args.db} and {args.json}")
+    if skipped:
+        print(f"\n{len(skipped)} ticker(s) skipped (fetch/parse errors): "
+              f"{', '.join(skipped)}", file=sys.stderr)
     return 0
 
 
