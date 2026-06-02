@@ -40,6 +40,21 @@ def _build_provider(args, cfg: Config):
     )
 
 
+def _build_event_provider(args, cfg: Config):
+    """Tier-2 event provider, or None when --no-events is set."""
+    if args.no_events:
+        return None
+    if getattr(args, "events_source", "fixture") == "edgar":
+        from .events import EdgarEventProvider
+        return EdgarEventProvider(
+            user_agent=cfg.user_agent,
+            cache_dir=args.events_cache or None,
+            include_fulltext=not args.no_fulltext_events,
+        )
+    from .events import FixtureEventProvider
+    return FixtureEventProvider(args.events_dir)
+
+
 def _print_table(cards, cfg: Config) -> None:
     sev_mark = {"CRITICAL": "■■■", "HIGH": "■■", "MEDIUM": "■", "LOW": "·", "NONE": ""}
     print(f"\n{'TICKER':<8}{'FLAGS':<7}{'MAXSEV':<10}{'SCORE':<8}FLAGGED RULES")
@@ -75,24 +90,32 @@ def cmd_run(args) -> int:
         return 2
 
     provider = _build_provider(args, cfg)
-    eprov = None
-    if not args.no_events:
-        from .events import FixtureEventProvider
-        eprov = FixtureEventProvider(args.events_dir)
+    eprov = _build_event_provider(args, cfg)
     cards = []
     skipped = []
+    ev_errors = []
     total = len(universe)
     for i, (ticker, cik) in enumerate(sorted(universe.items()), 1):
         try:
             facts = provider.get_company_facts(ticker, cik)
-            events = eprov.get_events(ticker, cik) if (eprov and eprov.has(ticker)) else None
-            cards.append(score_company(facts, as_of, cfg, events=events))
         except Exception as exc:  # one bad name must not abort the whole universe
             skipped.append(ticker)
             print(f"  [skip] {ticker} (CIK {cik}): {type(exc).__name__}: {exc}",
                   file=sys.stderr)
+            continue
+        events = None
+        if eprov is not None and eprov.has(ticker):
+            try:
+                events = eprov.get_events(ticker, cik)
+            except Exception as exc:  # Tier-2 unavailable -> still score Tier 1
+                ev_errors.append(ticker)
+                print(f"  [no-events] {ticker} (CIK {cik}): "
+                      f"{type(exc).__name__}: {exc}", file=sys.stderr)
+        cards.append(score_company(facts, as_of, cfg, events=events))
         if total > 1 and (i % 100 == 0 or i == total):
-            print(f"  …{i}/{total} screened ({len(skipped)} skipped)", file=sys.stderr)
+            print(f"  …{i}/{total} screened "
+                  f"({len(skipped)} skipped, {len(ev_errors)} without events)",
+                  file=sys.stderr)
 
     write_sqlite(cards, cfg, args.db)
     write_json(cards, cfg, args.json)
@@ -101,6 +124,9 @@ def cmd_run(args) -> int:
     if skipped:
         print(f"\n{len(skipped)} ticker(s) skipped (fetch/parse errors): "
               f"{', '.join(skipped)}", file=sys.stderr)
+    if ev_errors:
+        print(f"{len(ev_errors)} ticker(s) scored without Tier-2 events "
+              f"(event fetch failed): {', '.join(ev_errors)}", file=sys.stderr)
     return 0
 
 
@@ -369,6 +395,11 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--db", default=os.path.join(_ROOT, "out", "landmine.sqlite"))
     r.add_argument("--json", default=os.path.join(_ROOT, "out", "scorecard.json"))
     r.add_argument("--events-dir", default=os.path.join(_ROOT, "tests", "fixtures", "events"))
+    r.add_argument("--events-source", choices=["fixture", "edgar"], default="fixture",
+                   help="edgar = live SEC submissions + full-text search (needs egress)")
+    r.add_argument("--events-cache", default=os.path.join(_ROOT, "out", "events_cache"))
+    r.add_argument("--no-fulltext-events", action="store_true",
+                   help="skip the EFTS going-concern / material-weakness lookups")
     r.add_argument("--no-events", action="store_true", help="skip Tier 2 event rules")
     r.set_defaults(func=cmd_run)
 

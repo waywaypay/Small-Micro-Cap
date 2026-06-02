@@ -10,3 +10,4 @@ out/pit_*.json
 out/companyfacts_cache/
 .venv/
 out/screen_log.txt
+out/events_cache/
