@@ -314,7 +314,8 @@ landmine/
   tier3.py             ADVISORY LLM language layer (quarantined, non-deterministic)
   filings.py           fetch flag-relevant filing sections (fixture | EDGAR) for Tier 3
   universe.py          build the small/mid-cap ticker->CIK list (company_tickers + size cut)
-  cli.py               `python -m landmine run | calibrate | backtest | language | language-batch | universe`
+  portfolio.py         exclude landmines + weight survivors -> portfolio
+  cli.py               `python -m landmine run | calibrate | backtest | language | language-batch | universe | portfolio`
 config/                thresholds.yaml, universe.yaml, labels.yaml
 tests/                 PIT, determinism, rules, parser  (+ frozen fixtures/raw/)
 ```
@@ -372,7 +373,23 @@ fetch is injectable and the parse/cut logic is unit-tested offline; the live
 fetch runs where SEC egress is allowed.
 
 Full chain: `universe` → `run` (deterministic T1+T2) → `language-batch
---from-scorecard` (Tier 3 only on flagged names).
+--from-scorecard` (Tier 3 only on flagged names) → `portfolio` (exclude the
+landmines, weight the survivors).
+
+## Portfolio construction
+
+```bash
+landmine portfolio --from-scorecard out/scorecard.json --scheme equal
+```
+
+The screen is *negative selection*, so this is exclusion + transparent weighting
+(not return/alpha optimization, which needs data this system doesn't have): drop
+names with a CRITICAL flag or a weighted score / flag count over configured
+thresholds, then weight survivors `equal` or `score_tilt` (safer → larger), with
+optional per-name and "keep the N safest" caps. Deterministic, sums to 1.0, and
+every holding and exclusion records its reason (e.g. `AMC — critical_flag;
+score>=0.5 [R2_CASH_RUNWAY, R3_NEGATIVE_EQUITY, R4_LIQUIDITY]`). Knobs live under
+`portfolio:` in `config/thresholds.yaml`.
 
 ## Run as a Claude skill
 
@@ -384,12 +401,16 @@ reports the firing rules with their raw values + citations. The skill enforces
 the guardrails: Tier 3 stays advisory, point-in-time `--as-of` is always set,
 `INSUFFICIENT_DATA` is never a pass, and it's framed as research, not advice.
 
-## Out of scope (clean seams left for later)
+## Built end to end
 
-**Portfolio construction** — the only remaining piece, and it's the surrounding
-system, not the screen. The screen itself is complete: a universe builder, all
-three tiers (Tier 1 = 5 numeric rules; Tier 2 = 8 event rules incl. going
-concern, material weakness, restatement, auditor change, delisting, bankruptcy,
-late filings, offering clusters; Tier 3 = advisory LLM language signals,
-quarantined), three ingestion paths (MCP / companyfacts / DERA), a calibration +
-bulk backtest harness, and a packaged Claude skill wrapper.
+Universe builder → 3 tiers (Tier 1 = 5 numeric rules; Tier 2 = 8 event rules
+incl. going concern, material weakness, restatement, auditor change, delisting,
+bankruptcy, late filings, offering clusters; Tier 3 = advisory LLM language
+signals, quarantined) → calibration + bulk-backtest harness → exclusion-based
+portfolio → packaged Claude skill. Three ingestion paths (MCP / companyfacts /
+DERA), all injectable and unit-tested offline.
+
+The natural *next* system, beyond a distress screen, is return/alpha modelling
+and risk-based optimization to turn the survivor set into an optimized portfolio
+— deliberately not faked here, since it needs price/return data this system
+doesn't ingest.

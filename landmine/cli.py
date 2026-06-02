@@ -343,6 +343,45 @@ def cmd_universe(args) -> int:
     return 0
 
 
+def cmd_portfolio(args) -> int:
+    import datetime as _dt
+    from .portfolio import build_portfolio
+
+    with open(args.from_scorecard, "r", encoding="utf-8") as fh:
+        cards = json.load(fh)
+    cfg = dict(Config.load(args.config).portfolio)
+    # CLI overrides
+    if args.scheme:
+        cfg["scheme"] = args.scheme
+    if args.exclude_score is not None:
+        cfg["exclude_min_score"] = args.exclude_score
+    if args.max_weight is not None:
+        cfg["max_weight"] = args.max_weight
+    if args.max_names is not None:
+        cfg["max_names"] = args.max_names
+    as_of = _dt.date.fromisoformat(
+        args.as_of or (cards[0]["as_of"] if cards else "2026-06-02"))
+
+    pf = build_portfolio(cards, cfg, as_of)
+    print(f"\nPortfolio — as-of {pf.as_of}  scheme={pf.scheme}  "
+          f"{len(pf.holdings)} holdings / {len(pf.exclusions)} excluded  "
+          f"(total weight {sum(h.weight for h in pf.holdings):.4f})")
+    print("\n  HELD" + " " * 8 + "WEIGHT   SCORE")
+    for h in pf.holdings:
+        print(f"  {h.ticker:<10}{h.weight*100:6.2f}%  {h.score:6.2f}")
+    print("\n  EXCLUDED (landmines)")
+    for e in pf.exclusions:
+        print(f"  {e.ticker:<10}{e.reason:<26}score={e.score:.2f}  "
+              f"[{', '.join(e.flagged_rules)}]")
+    if args.json:
+        os.makedirs(os.path.dirname(args.json) or ".", exist_ok=True)
+        with open(args.json, "w", encoding="utf-8") as fh:
+            json.dump(pf.to_dict(), fh, sort_keys=True, indent=2)
+            fh.write("\n")
+        print(f"\nWrote {args.json}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="landmine", description=__doc__)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -452,6 +491,19 @@ def build_parser() -> argparse.ArgumentParser:
     u.add_argument("--cache", default=os.path.join(_ROOT, "out", "companyfacts_cache"))
     u.add_argument("--out", default=os.path.join(_ROOT, "out", "universe.generated.yaml"))
     u.set_defaults(func=cmd_universe)
+
+    pf = sub.add_parser("portfolio",
+                        help="build a portfolio from a scorecard (exclude landmines)")
+    pf.add_argument("--from-scorecard", required=True)
+    pf.add_argument("--config", default=os.path.join(_ROOT, "config", "thresholds.yaml"))
+    pf.add_argument("--as-of", default="")
+    pf.add_argument("--scheme", choices=["equal", "score_tilt"], default="")
+    pf.add_argument("--exclude-score", type=float, default=None,
+                    help="drop names with weighted score >= this")
+    pf.add_argument("--max-weight", type=float, default=None, help="per-name cap")
+    pf.add_argument("--max-names", type=int, default=None, help="keep the N safest")
+    pf.add_argument("--json", default=os.path.join(_ROOT, "out", "portfolio.json"))
+    pf.set_defaults(func=cmd_portfolio)
     return p
 
 

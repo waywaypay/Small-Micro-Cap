@@ -137,3 +137,13 @@ scoring:
     T2_BANKRUPTCY: 2.0
     T2_LATE_FILING: 1.5
     T2_DILUTION_EVENTS: 1.0
+
+# Portfolio construction from the scorecard (negative selection: exclude
+# landmines, then weight survivors). All knobs here.
+portfolio:
+  exclude_critical: true        # drop any name with a CRITICAL flag
+  exclude_min_score: 0.5        # drop names with weighted score >= this
+  exclude_min_flags: 0          # 0 = off; e.g. 1 to drop any flagged name
+  scheme: equal                 # equal | score_tilt (safer -> larger weight)
+  max_weight: 1.0               # per-name cap (1.0 = off)
+  max_names: 0                  # 0 = all survivors; else keep the N safest

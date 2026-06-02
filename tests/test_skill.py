@@ -43,5 +43,5 @@ def test_documented_subcommands_exist_in_the_cli():
     sub = next(a for a in build_parser()._actions
                if a.__class__.__name__ == "_SubParsersAction")
     for cmd in ("run", "universe", "calibrate", "backtest", "language",
-                "language-batch"):
+                "language-batch", "portfolio"):
         assert cmd in sub.choices, f"CLI is missing documented subcommand `{cmd}`"

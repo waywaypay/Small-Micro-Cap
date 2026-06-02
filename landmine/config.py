@@ -58,3 +58,7 @@ class Config:
     @property
     def weights(self) -> dict[str, float]:
         return self.raw.get("scoring", {}).get("weights", {})
+
+    @property
+    def portfolio(self) -> dict[str, Any]:
+        return self.raw.get("portfolio", {})

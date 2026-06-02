@@ -62,6 +62,14 @@ only data filed on/before it; no look-ahead).
    couple of dollars; do not use `--source claude-code` for bulk (per-call
    plan/context overhead).
 
+4. **Build a portfolio** (negative selection — exclude the landmines):
+   ```bash
+   python -m landmine portfolio --from-scorecard out/scorecard.json --scheme equal
+   ```
+   Drops CRITICAL / over-threshold names, weights the survivors (`equal` or
+   `score_tilt`); every holding and exclusion records its reason. This is
+   exclusion + weighting, **not** return/alpha optimization — say so.
+
 Other commands: `calibrate` (precision/recall on a labeled set), `backtest`
 (`--synthetic` or `--labels file.csv`).
 
