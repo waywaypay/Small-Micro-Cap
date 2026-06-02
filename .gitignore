@@ -8,4 +8,6 @@ out/calibration.json
 out/backtest.json
 out/pit_*.json
 out/companyfacts_cache/
+out/events/
+out/events_raw/
 .venv/

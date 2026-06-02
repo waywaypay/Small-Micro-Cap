@@ -92,6 +92,31 @@ CENN picks up a delisting notice. Everything is strictly point-in-time: WKHS's
 2 runs by default in `landmine run` for any ticker with an event fixture
 (disable with `--no-events`).
 
+### Refreshing Tier-2 event fixtures
+
+The event fixtures are **generated from live SEC data**, not hand-authored.
+`landmine capture-events` parses SEC-MCP tool output (`analyze-8k-items`,
+`get-late-filings`, `get-offerings`, `get-audit-flags`) into the same frozen
+`<TICKER>.json` the engine reads: 8-K events classified by item number,
+going-concern / material-weakness by audit flag, and bare S-3 shelves
+distinguished from 424B takedowns — all deterministic and unit-tested offline
+(`tests/test_events_capture.py`). Because the MCP is a per-name, agent-mediated
+source (not a bulk endpoint), capture is scoped to a targeted set — typically the
+names Tiers 1–2 already flagged:
+
+```bash
+# 1. run the MCP tools per name, saving each tool's text to
+#    out/events_raw/<TICKER>.<kind>.txt   (kinds: 8k, late, offerings, audit)
+# 2. parse those frozen captures into event fixtures:
+landmine capture-events --from-scorecard out/scorecard.json --out-dir out/events
+landmine run --as-of 2026-06-02 --events-dir out/events    # screen with fresh fixtures
+```
+
+Capturing WKHS this way reproduces the same screen outcome (5 flags, score 5.54)
+as the hand-authored fixture. Bulk Tier-1 numerics stay on the DERA / companyfacts
+paths — one dataset covers every filer; the MCP is the scalpel for targeted event
+capture, not the firehose.
+
 ## Tier 3 — language layer (advisory, non-deterministic)
 
 Tier 3 reads filing prose (risk factors, MD&A, going-concern notes) with an LLM
@@ -305,6 +330,7 @@ landmine/
     provider.py        FixtureProvider (deterministic) | HttpCompanyFactsProvider (prod)
   rules/               one Tier-1 module per rule + ordered registry
   events.py            Tier-2 Event model, EventSet.as_of(), FixtureEventProvider
+  events_capture.py    parse SEC-MCP tool text -> Event fixtures (capture-events)
   rules_t2.py          Tier-2 event rules (going concern, material weakness, ...)
   scoring.py           run Tier-1 (+ Tier-2 if events given) as-of a date -> Scorecard
   persistence.py       SQLite + canonical JSON
@@ -314,7 +340,7 @@ landmine/
   tier3.py             ADVISORY LLM language layer (quarantined, non-deterministic)
   filings.py           fetch flag-relevant filing sections (fixture | EDGAR) for Tier 3
   universe.py          build the small/mid-cap ticker->CIK list (company_tickers + size cut)
-  cli.py               `python -m landmine run | calibrate | backtest | language | language-batch | universe`
+  cli.py               `python -m landmine run | calibrate | backtest | language | language-batch | capture-events | universe`
 config/                thresholds.yaml, universe.yaml, labels.yaml
 tests/                 PIT, determinism, rules, parser  (+ frozen fixtures/raw/)
 ```

@@ -1,0 +1,12 @@
+============================================================================================
+Registration Statements & Prospectuses — Capco Test Inc. (_CAPCO)
+CIK: 0009990001
+Total: 2
+============================================================================================
+
+Date         Form         Period       Items          Annotation / URL
+--------------------------------------------------------------------------------------------
+2025-04-10   424B5                                    shelf takedown (prospectus under S-3)
+             https://www.sec.gov/Archives/edgar/data/9990001/000099900125000011/0000999001-25-000011-index.htm
+2025-01-05   S-3                                      shelf registration
+             https://www.sec.gov/Archives/edgar/data/9990001/000099900125000002/0000999001-25-000002-index.htm

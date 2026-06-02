@@ -1,0 +1,23 @@
+================================================================================================
+8-K Item Taxonomy — Capco Test Inc. (_CAPCO)
+CIK: 0009990001
+Filings: 4
+================================================================================================
+
+  2025-05-01  [non_reliance]
+    • Item 4.02: Non-Reliance on Previously Issued Financial Statements or a Related Audit Report
+    • Item 9.01: Financial Statements and Exhibits
+    https://www.sec.gov/Archives/edgar/data/9990001/000099900125000010/0000999001-25-000010-index.htm
+
+  2025-03-15  [auditor_change]
+    • Item 4.01: Changes in Registrant's Certifying Accountant
+    https://www.sec.gov/Archives/edgar/data/9990001/000099900125000007/0000999001-25-000007-index.htm
+
+  2025-02-01  [listing]
+    • Item 3.01: Notice of Delisting or Failure to Satisfy a Continued Listing Rule or Standard
+    https://www.sec.gov/Archives/edgar/data/9990001/000099900125000004/0000999001-25-000004-index.htm
+
+  2024-11-20  [bankruptcy, exec_departure]
+    • Item 1.03: Bankruptcy or Receivership
+    • Item 5.02: Departure / Election of Directors or Principal Officers
+    https://www.sec.gov/Archives/edgar/data/9990001/000099900124000020/0000999001-24-000020-index.htm

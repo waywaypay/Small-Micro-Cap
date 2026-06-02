@@ -1,0 +1,16 @@
+==========================================================================================
+Audit Flags — Capco Test Inc. (_CAPCO)
+CIK: 0009990001
+Filing: 10-K filed 2025-04-15 (period ending 2024-12-31)
+Source: https://www.sec.gov/Archives/edgar/data/9990001/000099900125000008/0000999001-25-000008-index.htm
+==========================================================================================
+
+  Going concern                FLAGGED
+  Material weakness (ICFR)     FLAGGED
+  Auditor change               not flagged
+
+
+## Going concern — matched passages (1)
+
+[1] ...the Company has a working capital deficiency that raises substantial doubt about its
+ability to continue as a going concern...

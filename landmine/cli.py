@@ -9,6 +9,7 @@ Examples
 from __future__ import annotations
 
 import argparse
+import collections
 import datetime as dt
 import json
 import os
@@ -320,6 +321,36 @@ def cmd_language_batch(args) -> int:
 
 
 
+def cmd_capture_events(args) -> int:
+    from .events_capture import MCP_TOOLS, dumps_fixture, events_from_captures
+
+    universe = _load_universe(args.universe)
+    tickers = _select_tickers(args, universe)
+    os.makedirs(args.out_dir, exist_ok=True)
+    written = 0
+    for t in tickers:
+        captures = {}
+        for kind in MCP_TOOLS:
+            path = os.path.join(args.raw_dir, f"{t}.{kind}.txt")
+            if os.path.exists(path):
+                with open(path, encoding="utf-8") as fh:
+                    captures[kind] = fh.read()
+        if not captures:
+            print(f"  {t}: no MCP captures in {args.raw_dir} "
+                  f"(expected {t}.<{'|'.join(MCP_TOOLS)}>.txt) — skipped", file=sys.stderr)
+            continue
+        events = events_from_captures(captures)
+        out_path = os.path.join(args.out_dir, f"{t}.json")
+        with open(out_path, "w", encoding="utf-8") as fh:
+            fh.write(dumps_fixture(t, universe.get(t), events))
+        by_type = collections.Counter(e.type.value for e in events)
+        summary = ", ".join(f"{k}x{v}" for k, v in sorted(by_type.items())) or "none"
+        print(f"  {t}: {len(events)} event(s) [{summary}] -> {out_path}")
+        written += 1
+    print(f"Wrote {written} event fixture(s) to {args.out_dir}")
+    return 0 if written else 2
+
+
 def cmd_universe(args) -> int:
     import datetime as _dt
 
@@ -449,6 +480,25 @@ def build_parser() -> argparse.ArgumentParser:
     lb.add_argument("--tier3-cache", default=os.path.join(_ROOT, "tests", "fixtures", "tier3"))
     lb.add_argument("--json", default="")
     lb.set_defaults(func=cmd_language_batch)
+
+    ce = sub.add_parser(
+        "capture-events",
+        help="parse frozen SEC-MCP text into Tier-2 event fixtures",
+        description="Parse SEC-MCP tool output into <TICKER>.json event fixtures. "
+                    "First run the MCP tools (analyze-8k-items, get-late-filings, "
+                    "get-offerings, get-audit-flags) for each name and save their text "
+                    "to --raw-dir as <TICKER>.<kind>.txt (kinds: 8k, late, offerings, "
+                    "audit); this parses that into the frozen fixtures the engine reads.")
+    ce.add_argument("--from-scorecard", default="",
+                    help="capture only names flagged in this scorecard.json")
+    ce.add_argument("--tickers", default="",
+                    help="explicit comma list (else: whole universe)")
+    ce.add_argument("--raw-dir", default=os.path.join(_ROOT, "out", "events_raw"),
+                    help="dir of frozen MCP text: <TICKER>.{8k,late,offerings,audit}.txt")
+    ce.add_argument("--out-dir", default=os.path.join(_ROOT, "out", "events"),
+                    help="where to write <TICKER>.json event fixtures")
+    ce.add_argument("--universe", default=os.path.join(_ROOT, "config", "universe.yaml"))
+    ce.set_defaults(func=cmd_capture_events)
 
     u = sub.add_parser("universe",
                        help="build the small/mid-cap ticker->CIK list (size cut)")
