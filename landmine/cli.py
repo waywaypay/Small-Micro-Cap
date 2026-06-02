@@ -131,6 +131,56 @@ def cmd_calibrate(args) -> int:
     return 0
 
 
+def _load_labels_csv(path: str):
+    """CSV with columns: ticker, label, [cik], [as_of] -> (labels, universe)."""
+    import csv
+    labels, universe = {}, {}
+    with open(path, "r", encoding="utf-8", newline="") as fh:
+        for row in csv.DictReader(fh):
+            t = row["ticker"].strip().upper()
+            labels[t] = {"label": row["label"].strip()}
+            if row.get("as_of"):
+                labels[t]["as_of"] = row["as_of"].strip()
+            if row.get("cik"):
+                universe[t] = row["cik"].strip()
+    return labels, universe
+
+
+def cmd_backtest(args) -> int:
+    cfg = Config.load(args.config)
+    if args.synthetic:
+        from .synthetic import synthetic_dataset
+        labels, universe, provider = synthetic_dataset(
+            args.n_distress, args.n_healthy, args.seed)
+        default_as_of = dt.date(2025, 6, 1)
+    else:
+        if not args.labels:
+            print("backtest needs --synthetic or --labels <csv>", file=sys.stderr)
+            return 2
+        labels, universe = _load_labels_csv(args.labels)
+        if not universe:                       # CIKs not in CSV -> fall back to yaml
+            universe = _load_universe(args.universe)
+        provider = _build_provider(args, cfg) if args.source != "dera" \
+            else _dera_provider(args)
+        default_as_of = dt.date.fromisoformat(args.as_of)
+
+    report = calibrate(labels, universe, cfg, provider, default_as_of)
+    print(f"\nBacktest — {'synthetic' if args.synthetic else args.labels}")
+    _print_calibration(report)
+    if args.json:
+        os.makedirs(os.path.dirname(args.json) or ".", exist_ok=True)
+        with open(args.json, "w", encoding="utf-8") as fh:
+            json.dump(report, fh, sort_keys=True, indent=2)
+            fh.write("\n")
+        print(f"\nWrote {args.json}")
+    return 0
+
+
+def _dera_provider(args):
+    from .dera import DeraProvider
+    return DeraProvider(args.dera_dir)
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="landmine", description=__doc__)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -156,6 +206,24 @@ def build_parser() -> argparse.ArgumentParser:
     c.add_argument("--cache", default=os.path.join(_ROOT, "out", "companyfacts_cache"))
     c.add_argument("--json", default=os.path.join(_ROOT, "out", "calibration.json"))
     c.set_defaults(func=cmd_calibrate)
+
+    b = sub.add_parser("backtest", help="run the screen over a large labeled set")
+    b.add_argument("--synthetic", action="store_true",
+                   help="use the deterministic synthetic-at-scale dataset")
+    b.add_argument("--n-distress", type=int, default=30)
+    b.add_argument("--n-healthy", type=int, default=30)
+    b.add_argument("--seed", type=int, default=7)
+    b.add_argument("--labels", default="", help="labeled CSV (ticker,label,cik,as_of)")
+    b.add_argument("--source", choices=["fixture", "companyfacts", "dera"],
+                   default="fixture")
+    b.add_argument("--config", default=os.path.join(_ROOT, "config", "thresholds.yaml"))
+    b.add_argument("--universe", default=os.path.join(_ROOT, "config", "universe.yaml"))
+    b.add_argument("--as-of", default="2026-06-02", help="fallback as-of date")
+    b.add_argument("--fixtures", default=os.path.join(_ROOT, "tests", "fixtures", "raw"))
+    b.add_argument("--cache", default=os.path.join(_ROOT, "out", "companyfacts_cache"))
+    b.add_argument("--dera-dir", default=os.path.join(_ROOT, "tests", "fixtures", "dera"))
+    b.add_argument("--json", default=os.path.join(_ROOT, "out", "backtest.json"))
+    b.set_defaults(func=cmd_backtest)
     return p
 
 

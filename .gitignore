@@ -5,6 +5,7 @@ __pycache__/
 out/*.sqlite
 out/scorecard.json
 out/calibration.json
+out/backtest.json
 out/pit_*.json
 out/companyfacts_cache/
 .venv/

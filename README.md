@@ -161,6 +161,40 @@ this gap is precisely the job of Tier 2 (event detection: 8-K items, debt
 maturities, offerings) and Tier 3 (filing-language checks) — out of scope here,
 with seams left in place.
 
+## Backtesting at scale
+
+The calibration harness scales to a bulk labeled set. Two ingestion paths feed it
+hundreds of names without per-company API calls:
+
+- **DERA bulk datasets** (`landmine/dera.py`) — SEC Financial Statement Data Sets
+  (`sub.txt` + `num.txt`). Joining `num` → `sub` on `adsh` gives each fact its
+  `filed` date (as-of stamp) and accession (citation); `qtrs` maps to
+  instant/quarterly/annual cadence. `facts_from_dera()` is a pure function,
+  unit-tested offline against a synthetic dataset (`tests/fixtures/dera/`).
+- **A deterministic synthetic-at-scale generator** (`landmine/synthetic.py`) for
+  environments without bulk SEC access (same constraint as this sandbox).
+
+```bash
+landmine backtest --synthetic                       # 60 labeled companies
+landmine backtest --labels names.csv --source dera --dera-dir <extracted_dataset>
+```
+
+The synthetic run produces **non-trivial, realistic** aggregate metrics — it
+deliberately seeds hard cases so the screen doesn't score a hollow 1.0:
+
+```
+Any-flag predictor: precision=0.93 recall=0.90  (TP=27 FP=2 FN=3 TN=28)
+
+Per-rule:   R1/R3/R4/R5 precision 1.00
+            R2_CASH_RUNWAY precision 0.71   <- transient-burn false positives
+```
+
+The 3 false negatives are the qualitative blind-spot names (clean numerics,
+real distress); the 2 false positives are healthy names with a transient burn
+quarter, which trip R2 — confirming cash-runway is the rule most exposed to
+single-quarter noise. A real backtest swaps the synthetic provider for the DERA
+(or companyfacts) one and a labeled CSV; the harness and metrics are identical.
+
 ## Architecture
 
 ```
@@ -176,7 +210,9 @@ landmine/
   scoring.py           run rules as-of a date -> Scorecard
   persistence.py       SQLite + canonical JSON
   calibrate.py         precision/recall on a labeled set (tuning, no rule changes)
-  cli.py               `python -m landmine run | calibrate`
+  dera.py              DERA bulk-dataset ingestion (sub.txt + num.txt -> Facts)
+  synthetic.py         deterministic synthetic-at-scale dataset for backtesting
+  cli.py               `python -m landmine run | calibrate | backtest`
 config/                thresholds.yaml, universe.yaml, labels.yaml
 tests/                 PIT, determinism, rules, parser  (+ frozen fixtures/raw/)
 ```
