@@ -186,6 +186,57 @@ def _dera_provider(args):
     return DeraProvider(args.dera_dir)
 
 
+# Demo filing registry for the advisory Tier-3 command (frozen excerpts).
+_FILINGS = {
+    "WKHS": ("WKHS__going_concern.txt",
+             dict(form="10-K", filed="2026-03-31", section="Item 1A Risk Factors",
+                  accession="0001628280-26-022417")),
+}
+
+
+def cmd_language(args) -> int:
+    import datetime as _dt
+    from .tier3 import (CachedLanguageModel, ClaudeLanguageModel, FilingSource,
+                        Tier3Analyzer)
+
+    ticker = args.ticker.upper()
+    if ticker not in _FILINGS:
+        print(f"No filing fixture for {ticker}. Available: {', '.join(_FILINGS)}",
+              file=sys.stderr)
+        return 2
+    fname, meta = _FILINGS[ticker]
+    with open(os.path.join(args.filings, fname), "r", encoding="utf-8") as fh:
+        text = fh.read()
+    source = FilingSource(ticker=ticker, form=meta["form"],
+                          filed=_dt.date.fromisoformat(meta["filed"]),
+                          section=meta["section"], accession=meta["accession"])
+    model = (ClaudeLanguageModel(model=args.model) if args.source == "claude"
+             else CachedLanguageModel(args.tier3_cache))
+    report = Tier3Analyzer(model).analyze(text, source,
+                                          _dt.date.fromisoformat(args.as_of))
+
+    print("\n" + "=" * 70)
+    print("TIER 3 — LANGUAGE SIGNALS  (ADVISORY · NON-DETERMINISTIC · LLM)")
+    print("Not part of the deterministic T1+T2 score. Each signal is grounded")
+    print("in a verbatim quote verified against the filing.")
+    print("=" * 70)
+    print(f"{report.ticker}  as-of {report.as_of}  model={report.model}  "
+          f"source={source.form} filed={source.filed} accn={source.accession}")
+    if not report.signals:
+        print("  (no grounded signals)")
+    for s in report.signals:
+        print(f"\n  [{s.severity.value:<6}] {s.type.value}")
+        print(f"     why : {s.rationale}")
+        print(f'     cite: "{s.quote}"  ({s.section})')
+    if args.json:
+        os.makedirs(os.path.dirname(args.json) or ".", exist_ok=True)
+        with open(args.json, "w", encoding="utf-8") as fh:
+            json.dump(report.to_dict(), fh, sort_keys=True, indent=2)
+            fh.write("\n")
+        print(f"\nWrote {args.json}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="landmine", description=__doc__)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -231,6 +282,18 @@ def build_parser() -> argparse.ArgumentParser:
     b.add_argument("--dera-dir", default=os.path.join(_ROOT, "tests", "fixtures", "dera"))
     b.add_argument("--json", default=os.path.join(_ROOT, "out", "backtest.json"))
     b.set_defaults(func=cmd_backtest)
+
+    l = sub.add_parser("language",
+                       help="Tier 3 advisory language signals (non-deterministic)")
+    l.add_argument("--ticker", required=True)
+    l.add_argument("--as-of", default="2026-06-02")
+    l.add_argument("--source", choices=["cached", "claude"], default="cached",
+                   help="cached = frozen/offline (default); claude = live LLM")
+    l.add_argument("--model", default="claude-opus-4-8")
+    l.add_argument("--filings", default=os.path.join(_ROOT, "tests", "fixtures", "filings"))
+    l.add_argument("--tier3-cache", default=os.path.join(_ROOT, "tests", "fixtures", "tier3"))
+    l.add_argument("--json", default="")
+    l.set_defaults(func=cmd_language)
     return p
 
 

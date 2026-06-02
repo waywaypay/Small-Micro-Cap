@@ -1,9 +1,11 @@
 # Landmine Screen — Tier 1 (deterministic engine)
 
 A negative-selection filter that flags financially distressed micro/small-cap
-companies from **point-in-time SEC EDGAR data**, before any stock-picking. This
-repo is the **deterministic backbone** — Tier 1 (numeric XBRL rules) and Tier 2
-(filing-event detection), with no LLM judgment anywhere in the engine.
+companies from **point-in-time SEC EDGAR data**, before any stock-picking. The
+**deterministic engine** is Tier 1 (numeric XBRL rules) + Tier 2 (filing-event
+detection) — no LLM judgment touches the reproducible score. Tier 3 adds an
+**advisory, explicitly-quarantined** LLM language layer that never folds into
+that score.
 
 ## Guarantees
 
@@ -89,6 +91,39 @@ CENN picks up a delisting notice. Everything is strictly point-in-time: WKHS's
 2024 delisting / 2021 restatement 8-Ks flag in their day and age out later. Tier
 2 runs by default in `landmine run` for any ticker with an event fixture
 (disable with `--no-events`).
+
+## Tier 3 — language layer (advisory, non-deterministic)
+
+Tier 3 reads filing prose (risk factors, MD&A, going-concern notes) with an LLM
+to surface soft-risk signals the numeric and event rules can't see. It is the
+**only non-deterministic component**, so it is quarantined:
+
+- **Advisory only** — Tier-3 output never folds into the byte-identical T1+T2
+  scorecard or the deterministic `total_score`. It's a separate report.
+- **Injectable model** — the LLM sits behind a `LanguageModel` interface.
+  `CachedLanguageModel` reads frozen output (deterministic; what tests and
+  reproducible runs use, no key/network). `ClaudeLanguageModel` is the
+  production client (Anthropic SDK, `claude-opus-4-8`, structured `json_schema`
+  output, prompt caching on the system prompt + filing text). Note: Opus 4.8
+  removed `temperature`, so stability comes from the schema constraint + a tight
+  system prompt, not a sampling param.
+- **Every signal is grounded** — each carries a verbatim quote that a
+  deterministic check verifies appears in the source text; ungrounded
+  (hallucinated-quote) signals are dropped. So a human can audit each soft
+  signal back to the filing even though the judgment isn't reproducible.
+- **Point-in-time** — a filing filed after the as-of date is never analyzed.
+
+```bash
+landmine language --ticker WKHS --as-of 2026-06-02            # cached/offline (default)
+landmine language --ticker WKHS --source claude               # live LLM (needs ANTHROPIC_API_KEY)
+```
+
+```
+TIER 3 — LANGUAGE SIGNALS  (ADVISORY · NON-DETERMINISTIC · LLM)
+  [HIGH ] GOING_CONCERN_LANGUAGE  cite: "raises substantial doubt about its ability to continue as a going concern"
+  [HIGH ] LIQUIDITY_DOUBT         cite: "has a working capital deficiency"
+  [MEDIUM] CAPITAL_RAISE_INTENT   cite: "needs to raise additional funds to meet its obligations"
+```
 
 ## Quick start
 
@@ -250,7 +285,8 @@ landmine/
   calibrate.py         precision/recall on a labeled set (tuning, no rule changes)
   dera.py              DERA bulk-dataset ingestion (sub.txt + num.txt -> Facts)
   synthetic.py         deterministic synthetic-at-scale dataset for backtesting
-  cli.py               `python -m landmine run | calibrate | backtest`
+  tier3.py             ADVISORY LLM language layer (quarantined, non-deterministic)
+  cli.py               `python -m landmine run | calibrate | backtest | language`
 config/                thresholds.yaml, universe.yaml, labels.yaml
 tests/                 PIT, determinism, rules, parser  (+ frozen fixtures/raw/)
 ```
@@ -294,8 +330,8 @@ stands in for is the literal HTTP GET, which runs unchanged where egress to
 
 ## Out of scope (clean seams left for later)
 
-Tier 3 LLM language checks (the only non-deterministic layer), the Skill
-wrapper, the universe builder, and portfolio construction. Tier 2 event
-detection is now built (see above); Tier 2 currently covers going concern,
-material weakness, late filings, and offering clusters, with enum seams for
-restatement (8-K 4.02), delisting (3.01), and bankruptcy (1.03).
+The **Skill wrapper**, the **universe builder**, and **portfolio construction**.
+All three tiers are now built: Tier 1 (5 numeric rules), Tier 2 (8 event rules
+incl. going concern, material weakness, restatement, auditor change, delisting,
+bankruptcy, late filings, offering clusters), and Tier 3 (advisory LLM language
+signals, quarantined from the deterministic score).

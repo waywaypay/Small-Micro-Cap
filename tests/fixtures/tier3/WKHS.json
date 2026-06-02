@@ -1,0 +1,28 @@
+{
+  "_note": "Frozen LLM output (what ClaudeLanguageModel would return) for the WKHS going-concern excerpt. Used by CachedLanguageModel so Tier 3 is exercised deterministically, without an API key or network. Each quote is verbatim from the source excerpt and is re-verified at runtime.",
+  "ticker": "WKHS",
+  "model": "claude-opus-4-8",
+  "signals": [
+    {
+      "type": "GOING_CONCERN_LANGUAGE",
+      "severity": "HIGH",
+      "rationale": "Management explicitly states substantial doubt about the Company's ability to continue as a going concern.",
+      "quote": "raises substantial doubt about its ability to continue as a going concern",
+      "section": "Item 1A Risk Factors"
+    },
+    {
+      "type": "LIQUIDITY_DOUBT",
+      "severity": "HIGH",
+      "rationale": "A working capital deficiency signals near-term inability to cover current obligations.",
+      "quote": "has a working capital deficiency",
+      "section": "Item 1A Risk Factors"
+    },
+    {
+      "type": "CAPITAL_RAISE_INTENT",
+      "severity": "MEDIUM",
+      "rationale": "The Company states it must raise additional funds to meet obligations, signalling likely further dilution.",
+      "quote": "needs to raise additional funds to meet its obligations",
+      "section": "Item 1A Risk Factors"
+    }
+  ]
+}
