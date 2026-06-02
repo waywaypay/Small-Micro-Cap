@@ -42,6 +42,10 @@ rules:
     enabled: true
     # flag when total stockholders' equity < this (USD).
     equity_floor: 0.0
+    # don't flag negative equity in a cash-generative business (buyback-driven
+    # negative equity is a financing choice, not distress). Set false to flag
+    # any negative equity regardless of cash generation.
+    require_negative_ocf: true
     severity_cap: 1.0           # equity == -100% of |assets-scale| -> 1.0
     # bands on (-equity / total_assets); deeper negative = worse.
     severity_bands: [0.0, 0.10, 0.25, 0.50]
@@ -50,6 +54,9 @@ rules:
     enabled: true
     # flag when current ratio (current assets / current liabilities) < this.
     min_current_ratio: 1.0
+    # don't flag a sub-1 current ratio in a cash-generative business (normal for
+    # asset-light / float-funded firms). Set false to flag regardless.
+    require_negative_ocf: true
     severity_cap: 1.0           # ratio 0 -> score 1.0
     severity_bands: [0.0, 0.15, 0.35, 0.60]  # bands on (threshold - ratio)
 

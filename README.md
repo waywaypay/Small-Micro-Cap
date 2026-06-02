@@ -44,6 +44,10 @@ Notes on rule mechanics:
 - **R2** burn is smoothed: it averages consecutive trailing quarters when
   available, else annualizes the latest annual figure, else uses the last
   quarter (`burn_method` is recorded in the output).
+- **R3 / R4** apply a **cash-generative gate** (`require_negative_ocf`, default
+  on): negative equity or a sub-1 current ratio is only flagged when the company
+  is also burning operating cash, so healthy buyback / asset-light firms aren't
+  false-flagged. Set the knob false to flag regardless.
 - **R5** is evaluated on the latest **annual** period (accruals are an
   annual-scale measure), which catches one-time non-cash gains — e.g. BYND's
   debt-exchange "profit" booked while operating cash flow was deeply negative.
@@ -70,16 +74,16 @@ AMC     3      CRITICAL  1.54    R2_CASH_RUNWAY, R3_NEGATIVE_EQUITY, R4_LIQUIDIT
 WKHS    1      CRITICAL  1.49    R2_CASH_RUNWAY
 CENN    1      HIGH      1.02    R2_CASH_RUNWAY
 PLUG    1      HIGH      0.94    R2_CASH_RUNWAY
-SBUX    2      HIGH      0.49    R3_NEGATIVE_EQUITY, R4_LIQUIDITY   (healthy! see Calibration)
 AAPL    0      NONE      0.00
 MSFT    0      NONE      0.00
 COST    0      NONE      0.00
+SBUX    0      NONE      0.00
 ```
 
-Each rule R1–R5 fires on at least one real distress name. SBUX (a healthy
-megacap) trips R3/R4 on buyback-driven negative equity and a sub-1 current
-ratio — a deliberate false-positive case the Calibration section dissects. Note
-two further behaviours:
+Each rule R1–R5 fires on at least one real distress name, and all four healthy
+controls pass — including SBUX, a healthy megacap with buyback-driven negative
+equity and a sub-1 current ratio that R3/R4 clear via the cash-generative gate
+(see Calibration). Note two further behaviours:
 
 - **CENN dilution is `INSUFFICIENT_DATA`, not a flag.** Its EPS-derived share
   series lurches across periods (split-adjustment noise); the rule refuses to
@@ -101,33 +105,33 @@ reports a confusion matrix + precision/recall/F1 for "any flag fired", per-rule
 coverage, and a sweep over the weighted-score cutoff. This is how you tune
 `thresholds.yaml` — it changes no rule logic and is fully deterministic.
 
-### What the current set reveals
+### How calibration drove a rule refinement
 
-On the 9-name labeled set (5 distress / 4 healthy) the harness surfaces two
-real findings rather than a trivially-perfect score:
+The harness earned its keep by catching a real false-positive, which was then
+fixed. On the 9-name set (5 distress / 4 healthy), **Starbucks** — clearly
+healthy — initially tripped **R3** (buyback-driven negative equity, −$8.5B) and
+**R4** (sub-1 current ratio, 0.92), dropping their precision to 0.67 / 0.50.
+
+The fix: a **cash-generative gate** (`require_negative_ocf`, on by default).
+Negative equity or a sub-1 current ratio only signals distress when the company
+is *also* burning operating cash; for a cash machine like SBUX it's a financing
+choice, not a landmine. The gate clears SBUX (recorded as
+`R3_NEGATIVE_EQUITY_BUT_CASH_GENERATIVE` / `R4_LIQUIDITY_OK_CASH_GENERATIVE`)
+while AMC and BYND — negative equity *and* burning cash — still flag. SBUX now
+stays in the labeled set as a **regression guard**.
+
+After the fix:
 
 ```
-Any-flag predictor: precision=0.83 recall=1.0  (TP=5 FP=1 FN=0 TN=3)
+Any-flag predictor: precision=1.0 recall=1.0  (TP=5 FP=0 FN=0 TN=4)
 
 Per-rule:              FIRED  PREC   RECALL
   R1_DILUTION           1     1.00   0.20
   R2_CASH_RUNWAY        4     1.00   0.80     <- the workhorse signal
-  R3_NEGATIVE_EQUITY    3     0.67   0.40     <- false-fires on SBUX
-  R4_LIQUIDITY          2     0.50   0.20     <- false-fires on SBUX
+  R3_NEGATIVE_EQUITY    2     1.00   0.40
+  R4_LIQUIDITY          1     1.00   0.20
   R5_EARNINGS_QUALITY   1     1.00   0.20
 ```
-
-1. **R3/R4 false-fire on healthy buyback / asset-light names.** Starbucks
-   (labeled healthy) has buyback-driven **negative equity** and a **sub-1
-   current ratio**, so it trips R3 and R4 — dropping their precision to 0.67 /
-   0.50. This is the real-world precision problem, made visible instead of
-   hidden, and it motivates refinement (exclude buyback-driven negative equity;
-   contextualize the current ratio for cash-generative firms).
-2. **Severity-weighted scoring beats flag-counting.** SBUX's flags are
-   low-severity, so its `weighted_total` is only 0.49 while every distress name
-   scores ≥0.94 — a `weighted_total >= 0.5` cutoff recovers perfect separation.
-   (SBUX sits right at the line, so this mitigates but does not replace the
-   R3/R4 fix.)
 
 **Caveat:** nine hand-picked names measure the *harness and rule behaviour*, not
 real-world skill — meaningful threshold calibration needs a few hundred labeled

@@ -33,15 +33,17 @@ def test_no_distress_name_is_missed():
     assert c["recall"] == 1.0 and c["fn"] == 0
 
 
-def test_known_false_positives_surface_on_buyback_name():
-    # SBUX (healthy) trips R3 (buyback negative equity) and R4 (sub-1 current
-    # ratio). Calibration must EXPOSE this, not hide it: the any-flag predictor
-    # loses precision, and R3/R4 precision drop below 1.0.
+def test_buyback_name_no_longer_false_fires():
+    # SBUX (healthy: buyback negative equity + sub-1 current ratio) is now
+    # cleared by the cash-generative gate on R3/R4. It is the regression guard
+    # that the refinement holds: zero false positives, R3/R4 precision 1.0.
     rep = _report()
-    assert rep["any_flag_confusion"]["fp"] == 1
-    assert rep["any_flag_confusion"]["precision"] < 1.0
-    assert rep["per_rule"]["R3_NEGATIVE_EQUITY"]["precision"] < 1.0
-    assert rep["per_rule"]["R4_LIQUIDITY"]["precision"] < 1.0
+    assert rep["any_flag_confusion"]["fp"] == 0
+    assert rep["any_flag_confusion"]["precision"] == 1.0
+    assert rep["per_rule"]["R3_NEGATIVE_EQUITY"]["precision"] == 1.0
+    assert rep["per_rule"]["R4_LIQUIDITY"]["precision"] == 1.0
+    sbux = next(r for r in rep["rows"] if r["ticker"] == "SBUX")
+    assert sbux["num_flags"] == 0
 
 
 def test_cash_runway_is_the_workhorse_rule():
@@ -51,9 +53,7 @@ def test_cash_runway_is_the_workhorse_rule():
     assert per["R2_CASH_RUNWAY"]["recall_of_distress"] == 0.8
 
 
-def test_weighted_score_cutoff_recovers_separation():
-    # The severity-weighted score does what flag-counting can't: at cutoff 0.5
-    # the low-severity SBUX false positives fall away and the set separates.
+def test_score_cutoff_sweep_separates_and_is_deterministic():
     sweep = {s["cutoff"]: s for s in _report()["score_cutoff_sweep"]}
     assert sweep[0.5]["precision"] == 1.0 and sweep[0.5]["recall"] == 1.0
     assert sweep[2.0]["recall"] < 1.0          # too-high cutoff drops recall

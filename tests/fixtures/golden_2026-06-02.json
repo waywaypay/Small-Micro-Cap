@@ -136,7 +136,8 @@
         "severity_score": 0.0,
         "status": "PASS",
         "threshold": {
-          "equity_floor": 0.0
+          "equity_floor": 0.0,
+          "require_negative_ocf": true
         }
       },
       {
@@ -174,7 +175,8 @@
         "severity_score": 0.0,
         "status": "PASS",
         "threshold": {
-          "min_current_ratio": 1.0
+          "min_current_ratio": 1.0,
+          "require_negative_ocf": true
         }
       },
       {
@@ -320,6 +322,15 @@
           },
           {
             "accession": null,
+            "concept": "OperatingCashFlow",
+            "filed": "2026-05-05",
+            "form": "10-Q",
+            "period_end": "2026-03-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
             "concept": "Assets",
             "filed": "2026-05-05",
             "form": "10-Q",
@@ -331,6 +342,7 @@
         "computed_value": -1930000000.0,
         "confidence": "high",
         "raw_values": {
+          "operating_cash_flow": -128500000.0,
           "period_end": "2026-03-31",
           "stockholders_equity": -1930000000.0,
           "total_assets": 7680000000.0
@@ -341,7 +353,8 @@
         "severity_score": 0.251302,
         "status": "FLAG",
         "threshold": {
-          "equity_floor": 0.0
+          "equity_floor": 0.0,
+          "require_negative_ocf": true
         }
       },
       {
@@ -363,6 +376,15 @@
             "period_end": "2026-03-31",
             "source": "SEC EDGAR XBRL (via MCP)",
             "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "OperatingCashFlow",
+            "filed": "2026-05-05",
+            "form": "10-Q",
+            "period_end": "2026-03-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
           }
         ],
         "computed_value": 0.348922,
@@ -371,6 +393,7 @@
           "current_assets": 582700000.0,
           "current_liabilities": 1670000000.0,
           "current_ratio": 0.348922,
+          "operating_cash_flow": -128500000.0,
           "period_end": "2026-03-31"
         },
         "reason": "R4_LIQUIDITY_STRESS",
@@ -379,7 +402,8 @@
         "severity_score": 0.651078,
         "status": "FLAG",
         "threshold": {
-          "min_current_ratio": 1.0
+          "min_current_ratio": 1.0,
+          "require_negative_ocf": true
         }
       },
       {
@@ -565,6 +589,15 @@
           },
           {
             "accession": null,
+            "concept": "OperatingCashFlow",
+            "filed": "2026-05-07",
+            "form": "10-Q",
+            "period_end": "2026-03-28",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
             "concept": "Assets",
             "filed": "2026-05-07",
             "form": "10-Q",
@@ -576,6 +609,7 @@
         "computed_value": -21080000.0,
         "confidence": "high",
         "raw_values": {
+          "operating_cash_flow": -5030000.0,
           "period_end": "2026-03-28",
           "stockholders_equity": -21080000.0,
           "total_assets": 579460000.0
@@ -586,7 +620,8 @@
         "severity_score": 0.036379,
         "status": "FLAG",
         "threshold": {
-          "equity_floor": 0.0
+          "equity_floor": 0.0,
+          "require_negative_ocf": true
         }
       },
       {
@@ -624,7 +659,8 @@
         "severity_score": 0.0,
         "status": "PASS",
         "threshold": {
-          "min_current_ratio": 1.0
+          "min_current_ratio": 1.0,
+          "require_negative_ocf": true
         }
       },
       {
@@ -779,7 +815,8 @@
         "severity_score": 0.0,
         "status": "PASS",
         "threshold": {
-          "equity_floor": 0.0
+          "equity_floor": 0.0,
+          "require_negative_ocf": true
         }
       },
       {
@@ -817,7 +854,8 @@
         "severity_score": 0.0,
         "status": "PASS",
         "threshold": {
-          "min_current_ratio": 1.0
+          "min_current_ratio": 1.0,
+          "require_negative_ocf": true
         }
       },
       {
@@ -970,7 +1008,8 @@
         "severity_score": 0.0,
         "status": "PASS",
         "threshold": {
-          "equity_floor": 0.0
+          "equity_floor": 0.0,
+          "require_negative_ocf": true
         }
       },
       {
@@ -1008,7 +1047,8 @@
         "severity_score": 0.0,
         "status": "PASS",
         "threshold": {
-          "min_current_ratio": 1.0
+          "min_current_ratio": 1.0,
+          "require_negative_ocf": true
         }
       },
       {
@@ -1221,7 +1261,8 @@
         "severity_score": 0.0,
         "status": "PASS",
         "threshold": {
-          "equity_floor": 0.0
+          "equity_floor": 0.0,
+          "require_negative_ocf": true
         }
       },
       {
@@ -1259,7 +1300,8 @@
         "severity_score": 0.0,
         "status": "PASS",
         "threshold": {
-          "min_current_ratio": 1.0
+          "min_current_ratio": 1.0,
+          "require_negative_ocf": true
         }
       },
       {
@@ -1414,7 +1456,8 @@
         "severity_score": 0.0,
         "status": "PASS",
         "threshold": {
-          "equity_floor": 0.0
+          "equity_floor": 0.0,
+          "require_negative_ocf": true
         }
       },
       {
@@ -1452,7 +1495,8 @@
         "severity_score": 0.0,
         "status": "PASS",
         "threshold": {
-          "min_current_ratio": 1.0
+          "min_current_ratio": 1.0,
+          "require_negative_ocf": true
         }
       },
       {
@@ -1511,12 +1555,9 @@
   {
     "as_of": "2026-06-02",
     "cik": "0000829224",
-    "flagged_rules": [
-      "R3_NEGATIVE_EQUITY",
-      "R4_LIQUIDITY"
-    ],
-    "max_severity": "HIGH",
-    "num_flags": 2,
+    "flagged_rules": [],
+    "max_severity": "NONE",
+    "num_flags": 0,
     "num_insufficient": 2,
     "results": [
       {
@@ -1573,10 +1614,10 @@
           },
           {
             "accession": null,
-            "concept": "Assets",
-            "filed": "2026-04-28",
+            "concept": "OperatingCashFlow",
+            "filed": "2026-01-28",
             "form": "10-Q",
-            "period_end": "2026-03-29",
+            "period_end": "2025-12-28",
             "source": "SEC EDGAR XBRL (via MCP)",
             "unit": "USD"
           }
@@ -1584,17 +1625,19 @@
         "computed_value": -8470000000.000001,
         "confidence": "high",
         "raw_values": {
+          "note": "negative_equity_but_cash_generative",
+          "operating_cash_flow": 1600000000.0,
           "period_end": "2026-03-29",
-          "stockholders_equity": -8470000000.000001,
-          "total_assets": 30560000000.0
+          "stockholders_equity": -8470000000.000001
         },
-        "reason": "R3_NEGATIVE_EQUITY",
+        "reason": "R3_NEGATIVE_EQUITY_BUT_CASH_GENERATIVE",
         "rule_code": "R3_NEGATIVE_EQUITY",
-        "severity": "HIGH",
-        "severity_score": 0.27716,
-        "status": "FLAG",
+        "severity": "NONE",
+        "severity_score": 0.0,
+        "status": "PASS",
         "threshold": {
-          "equity_floor": 0.0
+          "equity_floor": 0.0,
+          "require_negative_ocf": true
         }
       },
       {
@@ -1616,6 +1659,15 @@
             "period_end": "2026-03-29",
             "source": "SEC EDGAR XBRL (via MCP)",
             "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "OperatingCashFlow",
+            "filed": "2026-01-28",
+            "form": "10-Q",
+            "period_end": "2025-12-28",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
           }
         ],
         "computed_value": 0.922271,
@@ -1624,15 +1676,18 @@
           "current_assets": 10560000000.0,
           "current_liabilities": 11450000000.0,
           "current_ratio": 0.922271,
+          "note": "low_current_ratio_but_cash_generative",
+          "operating_cash_flow": 1600000000.0,
           "period_end": "2026-03-29"
         },
-        "reason": "R4_LIQUIDITY_STRESS",
+        "reason": "R4_LIQUIDITY_OK_CASH_GENERATIVE",
         "rule_code": "R4_LIQUIDITY",
-        "severity": "LOW",
-        "severity_score": 0.077729,
-        "status": "FLAG",
+        "severity": "NONE",
+        "severity_score": 0.0,
+        "status": "PASS",
         "threshold": {
-          "min_current_ratio": 1.0
+          "min_current_ratio": 1.0,
+          "require_negative_ocf": true
         }
       },
       {
@@ -1685,8 +1740,8 @@
       }
     ],
     "ticker": "SBUX",
-    "total_score": 0.354889,
-    "weighted_total": 0.493469
+    "total_score": 0,
+    "weighted_total": 0
   },
   {
     "as_of": "2026-06-02",
@@ -1827,7 +1882,8 @@
         "severity_score": 0.0,
         "status": "PASS",
         "threshold": {
-          "equity_floor": 0.0
+          "equity_floor": 0.0,
+          "require_negative_ocf": true
         }
       },
       {
@@ -1865,7 +1921,8 @@
         "severity_score": 0.0,
         "status": "PASS",
         "threshold": {
-          "min_current_ratio": 1.0
+          "min_current_ratio": 1.0,
+          "require_negative_ocf": true
         }
       },
       {

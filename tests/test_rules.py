@@ -95,6 +95,44 @@ def test_earnings_quality_flags_bynd_annual_accruals():
     assert r.raw_values["operating_cash_flow"] < 0
 
 
+def test_buyback_negative_equity_is_cleared_when_cash_generative():
+    # SBUX: negative equity from buybacks, but strongly cash-generative -> R3
+    # must NOT flag (financing choice, not distress).
+    r = _result(_card("SBUX"), "R3_NEGATIVE_EQUITY")
+    assert r.status is Status.PASS
+    assert r.reason == "R3_NEGATIVE_EQUITY_BUT_CASH_GENERATIVE"
+    assert r.raw_values["stockholders_equity"] < 0       # equity really is negative
+    assert r.raw_values["operating_cash_flow"] >= 0
+
+
+def test_sub1_current_ratio_is_cleared_when_cash_generative():
+    r = _result(_card("SBUX"), "R4_LIQUIDITY")
+    assert r.status is Status.PASS
+    assert r.reason == "R4_LIQUIDITY_OK_CASH_GENERATIVE"
+    assert r.computed_value < 1.0                          # ratio really is sub-1
+
+
+def test_cash_generative_gate_is_configurable():
+    # With the gate disabled, SBUX's negative equity flags again.
+    import copy
+    from landmine.config import Config
+    cfg = Config(copy.deepcopy(CFG.raw))
+    cfg.raw["rules"]["R3_NEGATIVE_EQUITY"]["require_negative_ocf"] = False
+    from landmine.data.provider import FixtureProvider
+    from landmine.scoring import score_company
+    card = score_company(
+        FixtureProvider(FIX).get_company_facts("SBUX", "0000829224"), AS_OF, cfg)
+    r = _result(card, "R3_NEGATIVE_EQUITY")
+    assert r.status is Status.FLAG
+
+
+def test_distress_negative_equity_still_flags_when_burning_cash():
+    # AMC: negative equity AND burning operating cash -> still a flag.
+    r = _result(_card("AMC"), "R3_NEGATIVE_EQUITY")
+    assert r.status is Status.FLAG
+    assert r.raw_values["operating_cash_flow"] < 0
+
+
 def test_cash_runway_burn_method_recorded():
     r = _result(_card("AMC"), "R2_CASH_RUNWAY")
     assert r.status is Status.FLAG

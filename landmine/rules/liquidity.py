@@ -5,7 +5,7 @@ from ..concepts import CURRENT_ASSETS, CURRENT_LIABILITIES
 from ..config import RuleConfig
 from ..data.facts import AsOfView
 from ..models import RuleResult, Status
-from .base import citation, insufficient, passed
+from .base import citation, insufficient, is_cash_generative, passed
 
 
 class LiquidityRule:
@@ -13,7 +13,9 @@ class LiquidityRule:
 
     def evaluate(self, view: AsOfView, cfg: RuleConfig) -> RuleResult:
         min_ratio = float(cfg.get("min_current_ratio", 1.0))
-        threshold = {"min_current_ratio": min_ratio}
+        require_negative_ocf = bool(cfg.get("require_negative_ocf", True))
+        threshold = {"min_current_ratio": min_ratio,
+                     "require_negative_ocf": require_negative_ocf}
 
         ca = view.latest(CURRENT_ASSETS)
         cl = view.latest(CURRENT_LIABILITIES)
@@ -45,6 +47,22 @@ class LiquidityRule:
 
         if ratio >= min_ratio:
             return passed(self.code, "R4_LIQUIDITY_OK", raw, threshold, cites, ratio)
+
+        # A sub-1 current ratio is normal for cash-generative, asset-light or
+        # float-funded businesses (gift cards, deferred revenue). Only treat it
+        # as stress when the company is also burning operating cash. Missing OCF
+        # is NOT treated as cleared.
+        if require_negative_ocf:
+            generative, ocf = is_cash_generative(view)
+            if generative:
+                raw["operating_cash_flow"] = ocf.value
+                raw["note"] = "low_current_ratio_but_cash_generative"
+                cites.append(citation(ocf))
+                return passed(self.code, "R4_LIQUIDITY_OK_CASH_GENERATIVE",
+                              raw, threshold, cites, ratio)
+            if ocf is not None:
+                raw["operating_cash_flow"] = ocf.value
+                cites.append(citation(ocf))
 
         sev, score = cfg.severity_for(min_ratio - ratio)
         return RuleResult(

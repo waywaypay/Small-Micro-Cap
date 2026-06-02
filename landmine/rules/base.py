@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import Optional, Protocol
 
+from ..concepts import OPERATING_CASH_FLOW
 from ..config import RuleConfig
 from ..data.facts import AsOfView, ResolvedFact
 from ..models import Citation, Confidence, RuleResult, Severity, Status
@@ -20,6 +21,27 @@ class Rule(Protocol):
 
     def evaluate(self, view: AsOfView, cfg: RuleConfig) -> RuleResult:
         ...
+
+
+def is_cash_generative(view: AsOfView) -> tuple[Optional[bool], Optional[ResolvedFact]]:
+    """Is the company generating operating cash? -> (verdict, evidence_fact).
+
+    Returns True only when the freshest operating cash flow is non-negative AND
+    no available annual figure is negative — so a single lucky positive quarter
+    can't clear a company whose year is deeply cash-negative. Returns None when
+    operating cash flow is unknown (callers must NOT treat unknown as cleared).
+
+    Used to keep balance-sheet rules (negative equity, liquidity) from firing on
+    healthy buyback / asset-light businesses, whose negative equity or sub-1
+    current ratio is a financing choice, not distress.
+    """
+    series = view.series(OPERATING_CASH_FLOW)
+    if not series:
+        return None, None
+    freshest = series[0]
+    annuals = [rf for rf in series if rf.fact.qualifier == "Annual"]
+    generative = freshest.value >= 0 and all(rf.value >= 0 for rf in annuals)
+    return generative, freshest
 
 
 def citation(rf: ResolvedFact) -> Citation:
