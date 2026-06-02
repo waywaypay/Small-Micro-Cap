@@ -15,7 +15,9 @@ Two scaling/precision providers make a whole-market build practical:
   quarter), instead of one companyfacts download per name.
 * :class:`SubmissionsEntityClassifier` + :func:`partition_operating` drop the
   non-operating vehicles a float cut drags in (ETFs / SPACs / commodity-crypto
-  trusts), so the distress rules only score operating companies.
+  trusts) and — as a labeled *sector* exclusion — clinical / pre-revenue
+  healthcare, whose going-concern & dilution are the business model rather than
+  distress, so the rules only score the operating companies in scope.
 
 Network access is injectable, so parsing/cut/classify logic is unit-tested
 offline; the live ``company_tickers.json`` + frames/submissions fetch runs where
@@ -311,6 +313,50 @@ def is_operating_company(info: EntityInfo, title: str = "",
     return True, ""
 
 
+# --- excluded sectors (healthcare) ------------------------------------------
+# Healthcare names ARE operating companies, but clinical / pre-revenue biotech &
+# healthcare routinely show going concern, a short cash runway, and heavy
+# dilution as a normal business-model trait — which the distress rules can't
+# distinguish from genuine distress. So they are removed from the screen as a
+# *labeled sector exclusion*, kept distinct from the non-operating-vehicle filter
+# above (different reason text), and classified the same way: SIC is
+# authoritative, the name regex is only a fallback when no SIC is present.
+HEALTHCARE_SIC_RANGES: tuple[tuple[int, int], ...] = (
+    (2833, 2836),   # medicinal chemicals, pharmaceutical preparations, biologics
+    (3826, 3826),   # laboratory analytical instruments
+    (3841, 3851),   # surgical/medical/dental instruments, electromedical, ophthalmic
+    (8000, 8099),   # health services (physicians, hospitals, medical labs, ...)
+)
+_HEALTHCARE_NAME_RE = re.compile(
+    r"\b(PHARMACEUTICAL|PHARMA|BIOPHARMA|BIOSCIENCE|BIOTECH|THERAPEUTIC|ONCOLOG|"
+    r"GENOMIC|LIFE ?SCIENCE|MEDICAL|HEALTH)\w*", re.I)
+
+
+def is_excluded_sector(info: EntityInfo, title: str = "",
+                       sic_ranges: tuple[tuple[int, int], ...] = HEALTHCARE_SIC_RANGES
+                       ) -> tuple[bool, str]:
+    """(is_excluded, reason_if_excluded) for the healthcare sector exclusion.
+
+    Mirrors :func:`is_operating_company`: a present SIC is authoritative (so a
+    non-healthcare operating SIC is never overridden by a healthcare-sounding
+    name), and the name regex is only a fallback for names with no SIC. An
+    unknown, unmarked name is *not* excluded — the filter never silently drops a
+    name it couldn't classify.
+    """
+    if info.sic:
+        try:
+            sic = int(info.sic)
+        except ValueError:
+            return False, ""
+        if any(lo <= sic <= hi for lo, hi in sic_ranges):
+            return True, f"SIC {info.sic} (healthcare sector)"
+        return False, ""                        # trust a present non-healthcare SIC
+    m = _HEALTHCARE_NAME_RE.search(title or "")
+    if m:
+        return True, f"name marker '{m.group(0).strip()}' (healthcare sector, no SIC)"
+    return False, ""
+
+
 @dataclass(frozen=True)
 class Exclusion:
     ticker: str
@@ -319,16 +365,28 @@ class Exclusion:
 
 
 def partition_operating(universe: dict[str, str], titles: dict[str, str],
-                        classifier: EntityClassifier
+                        classifier: EntityClassifier,
+                        exclude_healthcare: bool = True
                         ) -> tuple[dict[str, str], list[Exclusion]]:
-    """Split a {ticker: cik} universe into operating companies and excluded
-    non-operating vehicles (each carrying an auditable reason)."""
+    """Split a {ticker: cik} universe into kept names and excluded ones (each
+    carrying an auditable reason).
+
+    Drops non-operating vehicles (ETFs / SPACs / commodity-crypto trusts) and,
+    when ``exclude_healthcare`` (the default), also the healthcare sector — a
+    labeled exclusion whose reason text says ``healthcare sector`` so the audit
+    trail stays distinct from the non-operating-vehicle drops.
+    """
     kept: dict[str, str] = {}
     excluded: list[Exclusion] = []
     for ticker in sorted(universe):
         cik = universe[ticker]
         info = classifier.classify(ticker, cik)
-        ok, reason = is_operating_company(info, titles.get(ticker, ""))
+        title = titles.get(ticker, "")
+        ok, reason = is_operating_company(info, title)
+        if ok and exclude_healthcare:
+            in_sector, sector_reason = is_excluded_sector(info, title)
+            if in_sector:
+                ok, reason = False, sector_reason
         if ok:
             kept[ticker] = cik
         else:

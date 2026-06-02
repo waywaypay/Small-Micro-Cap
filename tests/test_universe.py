@@ -10,9 +10,10 @@ from landmine.data.provider import facts_from_companyfacts
 from landmine.universe import (EntityInfo, FramesSizeProvider,
                               PublicFloatSizeProvider, StaticEntityClassifier,
                               StaticSizeProvider, SubmissionsEntityClassifier,
-                              build_universe, is_operating_company,
-                              load_company_tickers, partition_operating,
-                              quarterly_instant_frames, write_universe_yaml)
+                              build_universe, is_excluded_sector,
+                              is_operating_company, load_company_tickers,
+                              partition_operating, quarterly_instant_frames,
+                              write_universe_yaml)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 UDIR = os.path.join(ROOT, "tests", "fixtures", "universe")
@@ -171,3 +172,81 @@ def test_cli_universe_operating_only_excludes(tmp_path):
     assert args.func(args) == 0
     uni = yaml.safe_load(open(out))["universe"]
     assert "BYND" not in uni and {"WKHS", "AMC"} <= set(uni)
+
+
+# --- healthcare sector exclusion (part of --operating-only) ----------------
+def test_is_excluded_sector_by_sic_ranges():
+    # pharma/biologics, devices, and health-services SIC ranges -> excluded
+    for sic in ("2833", "2836", "3826", "3841", "3851", "8000", "8071", "8099"):
+        assert is_excluded_sector(EntityInfo("1", sic=sic))[0] is True
+    # just outside the ranges -> kept
+    for sic in ("2837", "3840", "3852", "7999", "8100", "3711"):
+        assert is_excluded_sector(EntityInfo("1", sic=sic))[0] is False
+
+
+def test_is_excluded_sector_name_fallback_only_without_sic():
+    # no SIC -> classify on the name
+    assert is_excluded_sector(EntityInfo("1"), "Acme Pharmaceuticals, Inc.")[0] is True
+    assert is_excluded_sector(EntityInfo("1"), "Foo Therapeutics")[0] is True
+    assert is_excluded_sector(EntityInfo("1"), "Bar Biosciences")[0] is True
+    assert is_excluded_sector(EntityInfo("1"), "Acme Robotics Inc")[0] is False
+    # a present non-healthcare SIC is authoritative: a healthcare-sounding name
+    # does NOT override it (mirrors the non-operating filter)
+    assert is_excluded_sector(EntityInfo("1", sic="3711"), "Genomics Motors")[0] is False
+
+
+def test_is_excluded_sector_reason_is_labeled():
+    assert is_excluded_sector(EntityInfo("1", sic="2836"))[1] == "SIC 2836 (healthcare sector)"
+    ok, reason = is_excluded_sector(EntityInfo("1"), "Acme Pharma Inc")
+    assert ok and "healthcare sector" in reason and "name marker" in reason
+
+
+def test_partition_operating_also_drops_healthcare_by_default():
+    universe = {"OPER": "0000000001", "ETFX": "0000000002",
+                "BIO": "0000000003", "DEV": "0000000004"}
+    titles = {"OPER": "Acme Robotics Inc", "ETFX": "Big Fund",
+              "BIO": "Cure Bio", "DEV": "DeviceCo"}
+    classifier = StaticEntityClassifier({
+        "1": {"sic": "3711"},                 # operating -> kept
+        "2": {"sic": "6726"},                 # fund -> non-operating drop
+        "3": {"sic": "2836"},                 # biologics -> healthcare sector
+        "4": {"sic": "3841"}})                # medical devices -> healthcare sector
+    kept, excluded = partition_operating(universe, titles, classifier)
+    assert set(kept) == {"OPER"}
+    by_t = {e.ticker: e.reason for e in excluded}
+    assert "investment offices" in by_t["ETFX"]
+    assert by_t["BIO"] == "SIC 2836 (healthcare sector)"
+    assert by_t["DEV"] == "SIC 3841 (healthcare sector)"
+
+
+def test_partition_operating_keep_healthcare_retains_sector():
+    universe = {"BIO": "0000000003", "ETFX": "0000000002"}
+    titles = {"BIO": "Cure Bio", "ETFX": "Big Fund"}
+    classifier = StaticEntityClassifier({
+        "3": {"sic": "2836"}, "2": {"sic": "6726"}})
+    kept, excluded = partition_operating(universe, titles, classifier,
+                                         exclude_healthcare=False)
+    assert set(kept) == {"BIO"}                     # healthcare retained
+    assert {e.ticker for e in excluded} == {"ETFX"}  # vehicle still dropped
+
+
+def test_cli_universe_operating_only_drops_healthcare(tmp_path):
+    from landmine.cli import build_parser
+    # mark BYND as a biologics name (test-only); --operating-only should drop it
+    ent = os.path.join(tmp_path, "ent.json")
+    with open(ent, "w") as fh:
+        json.dump({"0001655210": {"sic": "2836",
+                                  "sicDescription": "Biological products"}}, fh)
+    out = os.path.join(tmp_path, "u.yaml")
+
+    def _run(extra):
+        args = build_parser().parse_args([
+            "universe", "--source", "fixture", "--size-source", "static",
+            "--operating-only", "--entities", ent, "--company-tickers", TICKERS,
+            "--sizes", SIZES, "--min-cap", "50e6", "--max-cap", "10e9",
+            "--out", out, *extra])
+        assert args.func(args) == 0
+        return yaml.safe_load(open(out))["universe"]
+
+    assert "BYND" not in _run([])                       # dropped as healthcare
+    assert "BYND" in _run(["--keep-healthcare"])         # retained with opt-out
