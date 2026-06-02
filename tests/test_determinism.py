@@ -11,8 +11,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FIX = os.path.join(ROOT, "tests", "fixtures", "raw")
 CFG = Config.load(os.path.join(ROOT, "config", "thresholds.yaml"))
 UNIVERSE = {"WKHS": "0001425287", "CENN": "0001707919",
-            "BYND": "0001655210", "AMC": "0001411579",
-            "AAPL": "0000320193", "MSFT": "0000789019"}
+            "BYND": "0001655210", "AMC": "0001411579", "PLUG": "0001093691",
+            "AAPL": "0000320193", "MSFT": "0000789019",
+            "COST": "0000909832", "SBUX": "0000829224"}
 
 
 def _run(as_of: dt.date) -> str:

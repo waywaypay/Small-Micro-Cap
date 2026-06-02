@@ -69,12 +69,17 @@ BYND    3      CRITICAL  1.55    R1_DILUTION, R3_NEGATIVE_EQUITY, R5_EARNINGS_QU
 AMC     3      CRITICAL  1.54    R2_CASH_RUNWAY, R3_NEGATIVE_EQUITY, R4_LIQUIDITY
 WKHS    1      CRITICAL  1.49    R2_CASH_RUNWAY
 CENN    1      HIGH      1.02    R2_CASH_RUNWAY
+PLUG    1      HIGH      0.94    R2_CASH_RUNWAY
+SBUX    2      HIGH      0.49    R3_NEGATIVE_EQUITY, R4_LIQUIDITY   (healthy! see Calibration)
 AAPL    0      NONE      0.00
 MSFT    0      NONE      0.00
+COST    0      NONE      0.00
 ```
 
-Each rule R1–R5 fires on at least one real distress name, and both healthy
-controls pass cleanly. Note two deliberate behaviours:
+Each rule R1–R5 fires on at least one real distress name. SBUX (a healthy
+megacap) trips R3/R4 on buyback-driven negative equity and a sub-1 current
+ratio — a deliberate false-positive case the Calibration section dissects. Note
+two further behaviours:
 
 - **CENN dilution is `INSUFFICIENT_DATA`, not a flag.** Its EPS-derived share
   series lurches across periods (split-adjustment noise); the rule refuses to
@@ -96,12 +101,37 @@ reports a confusion matrix + precision/recall/F1 for "any flag fired", per-rule
 coverage, and a sweep over the weighted-score cutoff. This is how you tune
 `thresholds.yaml` — it changes no rule logic and is fully deterministic.
 
-On the 6-name slice every distress name is caught and no healthy control
-false-fires, and the cutoff sweep shows clean separation for any
-`weighted_total` threshold in `(0, ~1.0]`. **Caveat:** six hand-picked names
-measure the *harness*, not real-world skill — meaningful threshold calibration
-needs a few hundred labeled names with pre-event as-of dates. Expand
-`config/labels.yaml` and re-run.
+### What the current set reveals
+
+On the 9-name labeled set (5 distress / 4 healthy) the harness surfaces two
+real findings rather than a trivially-perfect score:
+
+```
+Any-flag predictor: precision=0.83 recall=1.0  (TP=5 FP=1 FN=0 TN=3)
+
+Per-rule:              FIRED  PREC   RECALL
+  R1_DILUTION           1     1.00   0.20
+  R2_CASH_RUNWAY        4     1.00   0.80     <- the workhorse signal
+  R3_NEGATIVE_EQUITY    3     0.67   0.40     <- false-fires on SBUX
+  R4_LIQUIDITY          2     0.50   0.20     <- false-fires on SBUX
+  R5_EARNINGS_QUALITY   1     1.00   0.20
+```
+
+1. **R3/R4 false-fire on healthy buyback / asset-light names.** Starbucks
+   (labeled healthy) has buyback-driven **negative equity** and a **sub-1
+   current ratio**, so it trips R3 and R4 — dropping their precision to 0.67 /
+   0.50. This is the real-world precision problem, made visible instead of
+   hidden, and it motivates refinement (exclude buyback-driven negative equity;
+   contextualize the current ratio for cash-generative firms).
+2. **Severity-weighted scoring beats flag-counting.** SBUX's flags are
+   low-severity, so its `weighted_total` is only 0.49 while every distress name
+   scores ≥0.94 — a `weighted_total >= 0.5` cutoff recovers perfect separation.
+   (SBUX sits right at the line, so this mitigates but does not replace the
+   R3/R4 fix.)
+
+**Caveat:** nine hand-picked names measure the *harness and rule behaviour*, not
+real-world skill — meaningful threshold calibration needs a few hundred labeled
+names with pre-event as-of dates. Expand `config/labels.yaml` and re-run.
 
 ## Architecture
 

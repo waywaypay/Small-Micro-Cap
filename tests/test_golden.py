@@ -16,8 +16,9 @@ FIX = os.path.join(ROOT, "tests", "fixtures", "raw")
 GOLDEN = os.path.join(ROOT, "tests", "fixtures", "golden_2026-06-02.json")
 CFG = Config.load(os.path.join(ROOT, "config", "thresholds.yaml"))
 UNIVERSE = {"WKHS": "0001425287", "CENN": "0001707919",
-            "BYND": "0001655210", "AMC": "0001411579",
-            "AAPL": "0000320193", "MSFT": "0000789019"}
+            "BYND": "0001655210", "AMC": "0001411579", "PLUG": "0001093691",
+            "AAPL": "0000320193", "MSFT": "0000789019",
+            "COST": "0000909832", "SBUX": "0000829224"}
 
 
 def render() -> str:

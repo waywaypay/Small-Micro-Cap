@@ -12,5 +12,11 @@ labels:
   CENN: { label: distress, note: "material weakness, short runway" }
   BYND: { label: distress, note: "negative equity, debt-exchange accruals, heavy dilution" }
   AMC:  { label: distress, note: "negative equity, current ratio 0.35" }
+  PLUG: { label: distress, note: "going concern, ~1.5Q cash runway" }
   AAPL: { label: healthy,  note: "control" }
   MSFT: { label: healthy,  note: "control" }
+  COST: { label: healthy,  note: "clean control" }
+  # Ground-truth healthy, but trips R3/R4 on naive thresholds (buyback-driven
+  # negative equity + sub-1 current ratio). Kept IN the set on purpose so
+  # calibration surfaces these false positives instead of hiding them.
+  SBUX: { label: healthy,  note: "HARD CASE: healthy; buyback negative equity + sub-1 current ratio" }

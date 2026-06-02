@@ -6,13 +6,20 @@
 #   CENN  Cenntro Inc.      - sub-2Q runway (R2); dilution series too noisy to trust (R1 n/a)
 #   BYND  Beyond Meat       - negative equity (R3), debt-exchange accruals (R5), 6x dilution (R1)
 #   AMC   AMC Entertainment - negative equity (R3), current ratio 0.35 (R4), short runway (R2)
+#   PLUG  Plug Power        - going concern, ~1.5Q cash runway (R2)
 # Healthy controls (expected to pass):
 #   AAPL  Apple Inc.
 #   MSFT  Microsoft Corp.
+#   COST  Costco            - clean healthy control
+#   SBUX  Starbucks         - HARD CASE: healthy but buyback-driven negative equity (R3)
+#                             and sub-1 current ratio (R4) -> known false positives
 universe:
   WKHS: "0001425287"
   CENN: "0001707919"
   BYND: "0001655210"
   AMC: "0001411579"
+  PLUG: "0001093691"
   AAPL: "0000320193"
   MSFT: "0000789019"
+  COST: "0000909832"
+  SBUX: "0000829224"
