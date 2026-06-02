@@ -20,7 +20,6 @@ the configured window).
 from __future__ import annotations
 
 import datetime as dt
-from typing import Optional
 
 from ..concepts import EPS_BASIC, NET_INCOME, SHARES_OUTSTANDING
 from ..config import RuleConfig
@@ -43,16 +42,16 @@ class DilutionRule:
 
         ni = {rf.period_end: rf for rf in view.series(NET_INCOME)}
         eps = {rf.period_end: rf for rf in view.series(EPS_BASIC)}
-        shares: dict[dt.date, float] = {}
-        cites: dict[dt.date, list[Citation]] = {}
+        derived: dict[dt.date, float] = {}
+        derived_cites: dict[dt.date, list[Citation]] = {}
         for pe in set(ni) & set(eps):
             e = eps[pe].value
             if abs(e) < min_abs_eps:
                 continue
-            shares[pe] = abs(ni[pe].value / e)
-            cites[pe] = [citation(ni[pe]), citation(eps[pe])]
-        return (shares, "derived: NetIncome / EPSBasic (split-adjusted)",
-                cites, Confidence.LOW)
+            derived[pe] = abs(ni[pe].value / e)
+            derived_cites[pe] = [citation(ni[pe]), citation(eps[pe])]
+        return (derived, "derived: NetIncome / EPSBasic (split-adjusted)",
+                derived_cites, Confidence.LOW)
 
     def evaluate(self, view: AsOfView, cfg: RuleConfig) -> RuleResult:
         thr = float(cfg.get("yoy_growth_threshold", 0.25))
@@ -71,7 +70,7 @@ class DilutionRule:
 
         periods = sorted(shares, reverse=True)
         latest = periods[0]
-        prior: Optional[dt.date] = None
+        prior: dt.date | None = None
         for pe in periods[1:]:
             if lo <= (latest - pe).days <= hi:
                 prior = pe
@@ -84,7 +83,7 @@ class DilutionRule:
         # window, the EPS-derived estimate is not trustworthy — say so.
         if confidence is Confidence.LOW:
             window_pes = sorted(pe for pe in periods if prior <= pe <= latest)
-            for a, b in zip(window_pes, window_pes[1:]):
+            for a, b in zip(window_pes, window_pes[1:], strict=False):
                 va, vb = shares[a], shares[b]
                 if va > 0 and (vb / va > max_jump or va / vb > max_jump):
                     return insufficient(
@@ -114,7 +113,8 @@ class DilutionRule:
         # acquisition or stock-based comp, not dilution-to-fund-losses. Only flag
         # when the company is also burning operating cash. Missing OCF != cleared.
         if require_negative_ocf:
-            generative, ocf = is_cash_generative(view)
+            generative, ocf = is_cash_generative(
+                view, int(cfg.get("cash_generative_annual_lookback", 2)))
             if generative:
                 raw["operating_cash_flow"] = ocf.value
                 raw["note"] = "dilution_but_cash_generative"

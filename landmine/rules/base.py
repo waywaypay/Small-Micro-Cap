@@ -8,7 +8,7 @@ a required input is missing: a missing number is unknown, not safe.
 """
 from __future__ import annotations
 
-from typing import Optional, Protocol
+from typing import Protocol
 
 from ..concepts import OPERATING_CASH_FLOW
 from ..config import RuleConfig
@@ -23,13 +23,16 @@ class Rule(Protocol):
         ...
 
 
-def is_cash_generative(view: AsOfView) -> tuple[Optional[bool], Optional[ResolvedFact]]:
+def is_cash_generative(view: AsOfView, annual_lookback: int = 2
+                       ) -> tuple[bool | None, ResolvedFact | None]:
     """Is the company generating operating cash? -> (verdict, evidence_fact).
 
     Returns True only when the freshest operating cash flow is non-negative AND
-    no available annual figure is negative — so a single lucky positive quarter
-    can't clear a company whose year is deeply cash-negative. Returns None when
-    operating cash flow is unknown (callers must NOT treat unknown as cleared).
+    none of the most recent ``annual_lookback`` annual figures is negative — so a
+    single lucky positive quarter can't clear a company whose recent year is
+    deeply cash-negative, while a long-past negative year no longer haunts a
+    business that is cash-generative today. Returns None when operating cash flow
+    is unknown (callers must NOT treat unknown as cleared).
 
     Used to keep balance-sheet rules (negative equity, liquidity) from firing on
     healthy buyback / asset-light businesses, whose negative equity or sub-1
@@ -39,7 +42,7 @@ def is_cash_generative(view: AsOfView) -> tuple[Optional[bool], Optional[Resolve
     if not series:
         return None, None
     freshest = series[0]
-    annuals = [rf for rf in series if rf.fact.qualifier == "Annual"]
+    annuals = [rf for rf in series if rf.fact.qualifier == "Annual"][:annual_lookback]
     generative = freshest.value >= 0 and all(rf.value >= 0 for rf in annuals)
     return generative, freshest
 
@@ -70,7 +73,7 @@ def insufficient(code: str, missing: list[str], threshold: dict) -> RuleResult:
 
 
 def passed(code: str, reason: str, raw: dict, threshold: dict,
-           citations: list[Citation], computed: Optional[float],
+           citations: list[Citation], computed: float | None,
            confidence: Confidence = Confidence.HIGH) -> RuleResult:
     return RuleResult(
         rule_code=code,

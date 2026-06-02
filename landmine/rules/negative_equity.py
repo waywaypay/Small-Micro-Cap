@@ -35,7 +35,8 @@ class NegativeEquityRule:
         # (buybacks), not distress — clear it unless the company is also burning
         # operating cash. Missing OCF is NOT treated as cleared.
         if require_negative_ocf:
-            generative, ocf = is_cash_generative(view)
+            generative, ocf = is_cash_generative(
+                view, int(cfg.get("cash_generative_annual_lookback", 2)))
             if generative:
                 raw["operating_cash_flow"] = ocf.value
                 raw["note"] = "negative_equity_but_cash_generative"
