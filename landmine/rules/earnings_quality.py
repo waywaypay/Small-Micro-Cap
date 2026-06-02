@@ -19,7 +19,9 @@ class EarningsQualityRule:
 
     def evaluate(self, view: AsOfView, cfg: RuleConfig) -> RuleResult:
         max_accruals = float(cfg.get("max_accruals_ratio", 0.10))
-        threshold = {"max_accruals_ratio": max_accruals}
+        require_negative_ocf = bool(cfg.get("require_negative_ocf", True))
+        threshold = {"max_accruals_ratio": max_accruals,
+                     "require_negative_ocf": require_negative_ocf}
 
         # Accruals are an annual-scale measure, so prefer the most recent ANNUAL
         # period where NI, OCF and Assets all exist; fall back to the latest
@@ -59,6 +61,16 @@ class EarningsQualityRule:
         if ratio <= max_accruals:
             return passed(self.code, "R5_EARNINGS_QUALITY_OK", raw, threshold,
                           cites, ratio)
+
+        # High accruals matter most as "earnings not backed by cash": positive
+        # reported profit while operating cash flow is negative. When operating
+        # cash flow is positive, a high accruals ratio is usually a working-
+        # capital build in a growing, genuinely cash-generating business — not a
+        # quality red flag for a distress screen.
+        if require_negative_ocf and ocf.value >= 0:
+            raw["note"] = "high_accruals_but_positive_operating_cash_flow"
+            return passed(self.code, "R5_ACCRUALS_BUT_CASH_GENERATIVE", raw,
+                          threshold, cites, ratio)
 
         sev, score = cfg.severity_for(ratio)
         return RuleResult(

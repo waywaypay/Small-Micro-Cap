@@ -1,0 +1,64 @@
+{
+  "cik": 9999992,
+  "entityName": "CONTROLCO INC",
+  "_note": "Synthetic SEC companyfacts document. Healthy but a heavy diluter (+30% shares, e.g. a stock acquisition) AND high accruals (working-capital build) -- both naive triggers. Strong positive operating cash flow, so the R1 and R5 cash-generative gates clear it. Validates the precision refinements.",
+  "facts": {
+    "dei": {
+      "EntityCommonStockSharesOutstanding": {
+        "label": "Entity Common Stock, Shares Outstanding",
+        "units": {
+          "shares": [
+            {"end": "2024-03-31", "val": 100000000, "accn": "0009999992-24-000001", "fy": 2024, "fp": "Q1", "form": "10-Q", "filed": "2024-05-01"},
+            {"end": "2025-03-31", "val": 130000000, "accn": "0009999992-25-000001", "fy": 2025, "fp": "Q1", "form": "10-Q", "filed": "2025-05-01"}
+          ]
+        }
+      }
+    },
+    "us-gaap": {
+      "Assets": {
+        "label": "Assets",
+        "units": {"USD": [
+          {"end": "2024-12-31", "val": 200000000, "accn": "0009999992-25-000000", "fy": 2024, "fp": "FY", "form": "10-K", "filed": "2025-03-01"},
+          {"end": "2025-03-31", "val": 210000000, "accn": "0009999992-25-000001", "fy": 2025, "fp": "Q1", "form": "10-Q", "filed": "2025-05-01"}
+        ]}
+      },
+      "AssetsCurrent": {
+        "label": "Assets, Current",
+        "units": {"USD": [
+          {"end": "2025-03-31", "val": 150000000, "accn": "0009999992-25-000001", "fy": 2025, "fp": "Q1", "form": "10-Q", "filed": "2025-05-01"}
+        ]}
+      },
+      "CashAndCashEquivalentsAtCarryingValue": {
+        "label": "Cash and Cash Equivalents",
+        "units": {"USD": [
+          {"end": "2025-03-31", "val": 40000000, "accn": "0009999992-25-000001", "fy": 2025, "fp": "Q1", "form": "10-Q", "filed": "2025-05-01"}
+        ]}
+      },
+      "LiabilitiesCurrent": {
+        "label": "Liabilities, Current",
+        "units": {"USD": [
+          {"end": "2025-03-31", "val": 100000000, "accn": "0009999992-25-000001", "fy": 2025, "fp": "Q1", "form": "10-Q", "filed": "2025-05-01"}
+        ]}
+      },
+      "StockholdersEquity": {
+        "label": "Stockholders Equity",
+        "units": {"USD": [
+          {"end": "2025-03-31", "val": 200000000, "accn": "0009999992-25-000001", "fy": 2025, "fp": "Q1", "form": "10-Q", "filed": "2025-05-01"}
+        ]}
+      },
+      "NetIncomeLoss": {
+        "label": "Net Income (Loss)",
+        "units": {"USD": [
+          {"start": "2024-01-01", "end": "2024-12-31", "val": 80000000, "accn": "0009999992-25-000000", "fy": 2024, "fp": "FY", "form": "10-K", "filed": "2025-03-01"}
+        ]}
+      },
+      "NetCashProvidedByUsedInOperatingActivities": {
+        "label": "Operating Cash Flow",
+        "units": {"USD": [
+          {"start": "2024-01-01", "end": "2024-12-31", "val": 50000000, "accn": "0009999992-25-000000", "fy": 2024, "fp": "FY", "form": "10-K", "filed": "2025-03-01"},
+          {"start": "2025-01-01", "end": "2025-03-31", "val": 12000000, "accn": "0009999992-25-000001", "fy": 2025, "fp": "Q1", "form": "10-Q", "filed": "2025-05-01"}
+        ]}
+      }
+    }
+  }
+}

@@ -1,0 +1,8 @@
+# Demo universe for exercising the production companyfacts code path offline.
+#   landmine run --as-of 2025-06-01 --source companyfacts \
+#     --universe tests/fixtures/companyfacts/demo_universe.yaml \
+#     --cache  tests/fixtures/companyfacts
+# The provider reads CIK<cik>.json from the cache dir, so no network is needed.
+universe:
+  DISTRESSCO: "9999991"
+  CONTROLCO: "9999992"

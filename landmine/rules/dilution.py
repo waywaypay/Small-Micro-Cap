@@ -26,7 +26,7 @@ from ..concepts import EPS_BASIC, NET_INCOME, SHARES_OUTSTANDING
 from ..config import RuleConfig
 from ..data.facts import AsOfView
 from ..models import Citation, Confidence, RuleResult, Severity, Status
-from .base import citation, insufficient, passed
+from .base import citation, insufficient, is_cash_generative, passed
 
 
 class DilutionRule:
@@ -60,7 +60,9 @@ class DilutionRule:
         lo, hi = cfg.get("yoy_window_days", [300, 430])
         max_jump = float(cfg.get("max_consecutive_jump", 3.0))
         low_cap = float(cfg.get("low_confidence_severity_cap", 0.5))
-        threshold = {"yoy_growth_threshold": thr, "yoy_window_days": [lo, hi]}
+        require_negative_ocf = bool(cfg.get("require_negative_ocf", True))
+        threshold = {"yoy_growth_threshold": thr, "yoy_window_days": [lo, hi],
+                     "require_negative_ocf": require_negative_ocf}
 
         shares, method, cites, confidence = self._shares_series(view, min_abs_eps)
         if len(shares) < 2:
@@ -107,6 +109,21 @@ class DilutionRule:
         if growth <= thr:
             return passed(self.code, "R1_DILUTION_WITHIN_LIMIT", raw, threshold,
                           used_cites, growth, confidence)
+
+        # Heavy share growth in a cash-generative business is usually a stock
+        # acquisition or stock-based comp, not dilution-to-fund-losses. Only flag
+        # when the company is also burning operating cash. Missing OCF != cleared.
+        if require_negative_ocf:
+            generative, ocf = is_cash_generative(view)
+            if generative:
+                raw["operating_cash_flow"] = ocf.value
+                raw["note"] = "dilution_but_cash_generative"
+                used_cites = used_cites + [citation(ocf)]
+                return passed(self.code, "R1_DILUTION_BUT_CASH_GENERATIVE",
+                              raw, threshold, used_cites, growth, confidence)
+            if ocf is not None:
+                raw["operating_cash_flow"] = ocf.value
+                used_cites = used_cites + [citation(ocf)]
 
         sev, score = cfg.severity_for(growth)
         if confidence is Confidence.LOW:

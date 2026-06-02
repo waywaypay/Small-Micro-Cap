@@ -44,10 +44,12 @@ Notes on rule mechanics:
 - **R2** burn is smoothed: it averages consecutive trailing quarters when
   available, else annualizes the latest annual figure, else uses the last
   quarter (`burn_method` is recorded in the output).
-- **R3 / R4** apply a **cash-generative gate** (`require_negative_ocf`, default
-  on): negative equity or a sub-1 current ratio is only flagged when the company
-  is also burning operating cash, so healthy buyback / asset-light firms aren't
-  false-flagged. Set the knob false to flag regardless.
+- **Cash-generative gate** (`require_negative_ocf`, default on) on R1, R3, R4
+  and R5: heavy dilution, negative equity, a sub-1 current ratio, or high
+  accruals are only flagged when the company is *also* burning operating cash.
+  This keeps healthy buyback / asset-light / stock-acquisitive firms from
+  false-firing (their negative equity, low current ratio, or share growth is a
+  financing choice, not distress). Each knob can be disabled per rule.
 - **R5** is evaluated on the latest **annual** period (accruals are an
   annual-scale measure), which catches one-time non-cash gains — e.g. BYND's
   debt-exchange "profit" booked while operating cash flow was deeply negative.
@@ -177,6 +179,22 @@ accession numbers, and derives shares-outstanding as `NetIncome / EPS-basic`
 (split-clean, weighted-average) since the MCP exposes no structured share count.
 The production companyfacts path uses `dei:EntityCommonStockSharesOutstanding`
 directly.
+
+`HttpCompanyFactsProvider` reads its local cache before any network call, so the
+production code path (CIK formatting → JSON mapping → accession-backed
+citations) is exercised **end-to-end offline** against canonical-shape fixtures
+in `tests/fixtures/companyfacts/` (see `tests/test_companyfacts.py`). Demo:
+
+```bash
+landmine run --as-of 2025-06-01 --source companyfacts \
+  --universe tests/fixtures/companyfacts/demo_universe.yaml \
+  --cache  tests/fixtures/companyfacts
+```
+
+On this path R1 reads the **raw period-end share count** (HIGH confidence) and
+every flag cites a real **accession number** — the only thing the local cache
+stands in for is the literal HTTP GET, which runs unchanged where egress to
+`data.sec.gov` is allowed.
 
 ## Out of scope (clean seams left for later)
 

@@ -62,6 +62,7 @@
         "severity_score": 0.0,
         "status": "PASS",
         "threshold": {
+          "require_negative_ocf": true,
           "yoy_growth_threshold": 0.25,
           "yoy_window_days": [
             300,
@@ -224,7 +225,8 @@
         "severity_score": 0.0,
         "status": "PASS",
         "threshold": {
-          "max_accruals_ratio": 0.1
+          "max_accruals_ratio": 0.1,
+          "require_negative_ocf": true
         }
       }
     ],
@@ -259,6 +261,7 @@
         "severity_score": 0.0,
         "status": "INSUFFICIENT_DATA",
         "threshold": {
+          "require_negative_ocf": true,
           "yoy_growth_threshold": 0.25,
           "yoy_window_days": [
             300,
@@ -451,7 +454,8 @@
         "severity_score": 0.0,
         "status": "PASS",
         "threshold": {
-          "max_accruals_ratio": 0.1
+          "max_accruals_ratio": 0.1,
+          "require_negative_ocf": true
         }
       }
     ],
@@ -508,12 +512,22 @@
             "period_end": "2025-03-29",
             "source": "SEC EDGAR XBRL (via MCP)",
             "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "OperatingCashFlow",
+            "filed": "2026-05-07",
+            "form": "10-Q",
+            "period_end": "2026-03-28",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
           }
         ],
         "computed_value": 5.215966,
         "confidence": "low",
         "raw_values": {
           "latest_period": "2026-03-28",
+          "operating_cash_flow": -5030000.0,
           "prior_period": "2025-03-29",
           "shares_latest": 474666666.67,
           "shares_method": "derived: NetIncome / EPSBasic (split-adjusted)",
@@ -526,6 +540,7 @@
         "severity_score": 0.5,
         "status": "FLAG",
         "threshold": {
+          "require_negative_ocf": true,
           "yoy_growth_threshold": 0.25,
           "yoy_window_days": [
             300,
@@ -708,7 +723,8 @@
         "severity_score": 1.0,
         "status": "FLAG",
         "threshold": {
-          "max_accruals_ratio": 0.1
+          "max_accruals_ratio": 0.1,
+          "require_negative_ocf": true
         }
       }
     ],
@@ -741,6 +757,7 @@
         "severity_score": 0.0,
         "status": "INSUFFICIENT_DATA",
         "threshold": {
+          "require_negative_ocf": true,
           "yoy_growth_threshold": 0.25,
           "yoy_window_days": [
             300,
@@ -903,7 +920,8 @@
         "severity_score": 0.0,
         "status": "PASS",
         "threshold": {
-          "max_accruals_ratio": 0.1
+          "max_accruals_ratio": 0.1,
+          "require_negative_ocf": true
         }
       }
     ],
@@ -934,6 +952,7 @@
         "severity_score": 0.0,
         "status": "INSUFFICIENT_DATA",
         "threshold": {
+          "require_negative_ocf": true,
           "yoy_growth_threshold": 0.25,
           "yoy_window_days": [
             300,
@@ -1096,7 +1115,8 @@
         "severity_score": 0.0,
         "status": "PASS",
         "threshold": {
-          "max_accruals_ratio": 0.1
+          "max_accruals_ratio": 0.1,
+          "require_negative_ocf": true
         }
       }
     ],
@@ -1167,6 +1187,7 @@
         "severity_score": 0.0,
         "status": "PASS",
         "threshold": {
+          "require_negative_ocf": true,
           "yoy_growth_threshold": 0.25,
           "yoy_window_days": [
             300,
@@ -1349,7 +1370,8 @@
         "severity_score": 0.0,
         "status": "PASS",
         "threshold": {
-          "max_accruals_ratio": 0.1
+          "max_accruals_ratio": 0.1,
+          "require_negative_ocf": true
         }
       }
     ],
@@ -1382,6 +1404,7 @@
         "severity_score": 0.0,
         "status": "INSUFFICIENT_DATA",
         "threshold": {
+          "require_negative_ocf": true,
           "yoy_growth_threshold": 0.25,
           "yoy_window_days": [
             300,
@@ -1544,7 +1567,8 @@
         "severity_score": 0.0,
         "status": "PASS",
         "threshold": {
-          "max_accruals_ratio": 0.1
+          "max_accruals_ratio": 0.1,
+          "require_negative_ocf": true
         }
       }
     ],
@@ -1575,6 +1599,7 @@
         "severity_score": 0.0,
         "status": "INSUFFICIENT_DATA",
         "threshold": {
+          "require_negative_ocf": true,
           "yoy_growth_threshold": 0.25,
           "yoy_window_days": [
             300,
@@ -1735,7 +1760,8 @@
         "severity_score": 0.0,
         "status": "PASS",
         "threshold": {
-          "max_accruals_ratio": 0.1
+          "max_accruals_ratio": 0.1,
+          "require_negative_ocf": true
         }
       }
     ],
@@ -1808,6 +1834,7 @@
         "severity_score": 0.0,
         "status": "PASS",
         "threshold": {
+          "require_negative_ocf": true,
           "yoy_growth_threshold": 0.25,
           "yoy_window_days": [
             300,
@@ -1970,7 +1997,8 @@
         "severity_score": 0.0,
         "status": "PASS",
         "threshold": {
-          "max_accruals_ratio": 0.1
+          "max_accruals_ratio": 0.1,
+          "require_negative_ocf": true
         }
       }
     ],
