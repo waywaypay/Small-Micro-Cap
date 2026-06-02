@@ -40,6 +40,16 @@ def _build_provider(args, cfg: Config):
     )
 
 
+def _build_event_provider(args, cfg: Config):
+    if args.no_events:
+        return None
+    if getattr(args, "events_source", "fixture") == "edgar":
+        from .events import EdgarEventProvider
+        return EdgarEventProvider(user_agent=cfg.user_agent)
+    from .events import FixtureEventProvider
+    return FixtureEventProvider(args.events_dir)
+
+
 def _print_table(cards, cfg: Config) -> None:
     sev_mark = {"CRITICAL": "■■■", "HIGH": "■■", "MEDIUM": "■", "LOW": "·", "NONE": ""}
     print(f"\n{'TICKER':<8}{'FLAGS':<7}{'MAXSEV':<10}{'SCORE':<8}FLAGGED RULES")
@@ -75,10 +85,7 @@ def cmd_run(args) -> int:
         return 2
 
     provider = _build_provider(args, cfg)
-    eprov = None
-    if not args.no_events:
-        from .events import FixtureEventProvider
-        eprov = FixtureEventProvider(args.events_dir)
+    eprov = _build_event_provider(args, cfg)
     cards = []
     for ticker, cik in sorted(universe.items()):
         facts = provider.get_company_facts(ticker, cik)
@@ -244,12 +251,29 @@ def cmd_language(args) -> int:
     return 0
 
 
+def _card_score(c: dict) -> float:
+    return float(c.get("weighted_total", c.get("total_score", 0.0)) or 0.0)
+
+
 def _select_tickers(args, universe: dict) -> list[str]:
     if args.from_scorecard:
         with open(args.from_scorecard, "r", encoding="utf-8") as fh:
             cards = json.load(fh)
-        # Tier 3 only on names the deterministic tiers flagged.
-        return [c["ticker"] for c in cards if c.get("num_flags", 0) > 0]
+        # Tier 3 only on names the deterministic tiers flagged — then triage the
+        # tail so advisory runs on dozens, not hundreds. (Non-operating vehicles
+        # are already removed upstream by `universe --operating-only`.)
+        flagged = [c for c in cards if c.get("num_flags", 0) > 0]
+        if getattr(args, "critical_only", False):
+            flagged = [c for c in flagged if c.get("max_severity") == "CRITICAL"]
+        min_score = getattr(args, "min_score", 0.0) or 0.0
+        if min_score:
+            flagged = [c for c in flagged if _card_score(c) >= min_score]
+        flagged.sort(key=lambda c: (_card_score(c), c.get("ticker", "")),
+                     reverse=True)                    # worst (highest score) first
+        top_n = getattr(args, "top_n", 0) or 0
+        if top_n > 0:
+            flagged = flagged[:top_n]
+        return [c["ticker"] for c in flagged]
     if args.tickers:
         return [t.strip().upper() for t in args.tickers.split(",") if t.strip()]
     return sorted(universe)
@@ -312,8 +336,11 @@ def cmd_language_batch(args) -> int:
 
 def cmd_universe(args) -> int:
     import datetime as _dt
-    from .universe import (PublicFloatSizeProvider, StaticSizeProvider,
-                          build_universe, load_company_tickers, write_universe_yaml)
+    from .universe import (FramesSizeProvider, PublicFloatSizeProvider,
+                          StaticEntityClassifier, StaticSizeProvider,
+                          SubmissionsEntityClassifier, build_universe,
+                          load_company_tickers, partition_operating,
+                          write_universe_yaml)
 
     if args.source == "fixture":
         path = args.company_tickers
@@ -321,23 +348,43 @@ def cmd_universe(args) -> int:
     else:
         records = load_company_tickers(user_agent=args.user_agent)
 
+    as_of = _dt.date.fromisoformat(args.as_of)
     if args.size_source == "static":
         with open(args.sizes, "r", encoding="utf-8") as fh:
             raw = {k: v for k, v in json.load(fh).items() if not k.startswith("_")}
         size = StaticSizeProvider(raw)
-    else:  # public-float via companyfacts
+    elif args.size_source == "frames":      # whole market in a handful of calls
+        size = FramesSizeProvider(as_of, user_agent=args.user_agent)
+    else:                                   # public-float via per-name companyfacts
         size = PublicFloatSizeProvider(
             HttpCompanyFactsProvider(user_agent=args.user_agent,
-                                     cache_dir=args.cache or None),
-            _dt.date.fromisoformat(args.as_of))
+                                     cache_dir=args.cache or None), as_of)
 
     universe = build_universe(records, size, args.min_cap, args.max_cap)
+
+    excluded = []
+    if args.operating_only:
+        titles = {r.ticker: r.title for r in records}
+        if args.entities:
+            with open(args.entities, "r", encoding="utf-8") as fh:
+                ent = {k: v for k, v in json.load(fh).items() if not k.startswith("_")}
+            classifier = StaticEntityClassifier(ent)
+        else:
+            classifier = SubmissionsEntityClassifier(user_agent=args.user_agent,
+                                                     cache_dir=args.cache or None)
+        universe, excluded = partition_operating(universe, titles, classifier)
+
+    dropped = f"; {len(excluded)} non-operating dropped" if args.operating_only else ""
     note = (f"Generated {args.as_of}: {len(universe)}/{len(records)} names in "
             f"[{args.min_cap:,.0f}, {args.max_cap:,.0f}] USD "
-            f"({args.size_source}).")
+            f"({args.size_source}{dropped}).")
     print(note)
     for t in sorted(universe):
         print(f"  {t}  {universe[t]}")
+    if excluded:
+        print(f"\nExcluded {len(excluded)} non-operating entities:")
+        for e in excluded:
+            print(f"  {e.ticker:<8}{e.cik}  {e.reason}")
     write_universe_yaml(universe, args.out, note=note)
     print(f"Wrote {args.out}")
     return 0
@@ -396,6 +443,9 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--db", default=os.path.join(_ROOT, "out", "landmine.sqlite"))
     r.add_argument("--json", default=os.path.join(_ROOT, "out", "scorecard.json"))
     r.add_argument("--events-dir", default=os.path.join(_ROOT, "tests", "fixtures", "events"))
+    r.add_argument("--events-source", choices=["fixture", "edgar"], default="fixture",
+                   help="fixture = frozen event captures (default); edgar = live "
+                        "submissions API, so Tier 2 fires on any CIK (needs SEC egress)")
     r.add_argument("--no-events", action="store_true", help="skip Tier 2 event rules")
     r.set_defaults(func=cmd_run)
 
@@ -456,6 +506,13 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Tier 3 over many flagged names in one batched job")
     lb.add_argument("--from-scorecard", default="",
                     help="run Tier 3 only on names flagged in this scorecard.json")
+    lb.add_argument("--top-n", type=int, default=0,
+                    help="with --from-scorecard: rank flagged names by weighted "
+                         "score and keep the worst N (0 = all)")
+    lb.add_argument("--critical-only", action="store_true",
+                    help="with --from-scorecard: only names whose max severity is CRITICAL")
+    lb.add_argument("--min-score", type=float, default=0.0,
+                    help="with --from-scorecard: only names with weighted_total >= this")
     lb.add_argument("--tickers", default="", help="explicit comma list (overridden "
                     "by --from-scorecard); default = whole universe")
     lb.add_argument("--as-of", default="2026-06-02")
@@ -476,9 +533,19 @@ def build_parser() -> argparse.ArgumentParser:
                        help="build the small/mid-cap ticker->CIK list (size cut)")
     u.add_argument("--source", choices=["fixture", "sec"], default="fixture",
                    help="sec = live company_tickers.json (needs egress)")
-    u.add_argument("--size-source", choices=["static", "public-float"],
+    u.add_argument("--size-source", choices=["static", "frames", "public-float"],
                    default="static",
-                   help="public-float = dei:EntityPublicFloat via companyfacts")
+                   help="frames = dei:EntityPublicFloat via the SEC frames API "
+                        "(whole market in a handful of calls; recommended for live "
+                        "runs); public-float = per-name companyfacts (slow); "
+                        "static = offline size map")
+    u.add_argument("--operating-only", action="store_true",
+                   help="drop non-operating entities (ETFs / SPACs / commodity-"
+                        "crypto trusts) by SIC code, so the distress rules only "
+                        "score operating companies")
+    u.add_argument("--entities", default="",
+                   help="static cik->{sic,...} json for offline operating "
+                        "classification; blank = live submissions API")
     u.add_argument("--min-cap", type=float, default=50e6)
     u.add_argument("--max-cap", type=float, default=10e9)
     u.add_argument("--as-of", default="2026-06-02")

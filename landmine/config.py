@@ -62,3 +62,11 @@ class Config:
     @property
     def portfolio(self) -> dict[str, Any]:
         return self.raw.get("portfolio", {})
+
+    @property
+    def staleness(self) -> dict[str, Any]:
+        return self.raw.get("staleness", {})
+
+    @property
+    def corroboration(self) -> dict[str, Any]:
+        return self.raw.get("corroboration", {})

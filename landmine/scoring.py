@@ -6,11 +6,13 @@ from typing import Optional
 from typing import Optional
 
 from .config import Config
+from .corroboration import corroborate
 from .data.facts import CompanyFacts
 from .events import EventSet
 from .models import Scorecard
 from .rules.registry import ALL_RULES
 from .rules_t2 import ALL_T2_RULES
+from .staleness import apply_staleness
 
 
 def score_company(facts: CompanyFacts, as_of: dt.date, cfg: Config,
@@ -19,15 +21,19 @@ def score_company(facts: CompanyFacts, as_of: dt.date, cfg: Config,
 
     The point-in-time views (facts and, if supplied, events) are built once,
     here, so every rule — Tier 1 and Tier 2 — sees the exact same as-of snapshot
-    and no rule can reach past ``as_of``.
+    and no rule can reach past ``as_of``. Tier-1 flags are passed through the
+    staleness guard (a flag built on years-old data is downgraded); when events
+    are supplied, the cash-runway flag is corroborated against Tier-2 events.
     """
     view = facts.as_of(as_of)
     card = Scorecard(ticker=facts.ticker, cik=facts.cik, as_of=as_of)
+    stale_cfg = cfg.staleness
     for rule in ALL_RULES:
         rc = cfg.rule(rule.code)
         if not rc.enabled:
             continue
-        card.results.append(rule.evaluate(view, rc))
+        card.results.append(apply_staleness(rule.evaluate(view, rc), as_of,
+                                            stale_cfg))
     if events is not None:
         ev_view = events.as_of(as_of)
         for rule in ALL_T2_RULES:
@@ -35,6 +41,7 @@ def score_company(facts: CompanyFacts, as_of: dt.date, cfg: Config,
             if not rc.enabled:
                 continue
             card.results.append(rule.evaluate(ev_view, rc))
+        card.results = corroborate(card.results, ev_view, cfg.corroboration)
     return card
 
 
