@@ -24,7 +24,7 @@ import os
 import re
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional, Protocol
+from typing import Protocol
 
 # Production model id (Anthropic). Default is Haiku: Tier 3 is grounded phrase
 # extraction, which Haiku handles at ~5x lower cost than Opus — override with
@@ -69,7 +69,7 @@ class FilingSource:
     form: str
     filed: dt.date
     section: str
-    accession: Optional[str] = None
+    accession: str | None = None
 
 
 @dataclass(frozen=True)
@@ -230,7 +230,7 @@ DISTRESS_TERMS = [
 _CHARS_PER_TOKEN = 4  # rough heuristic for the budget guard
 
 
-def select_passages(text: str, terms: Optional[list[str]] = None,
+def select_passages(text: str, terms: list[str] | None = None,
                     max_chars: int = 60000) -> str:
     """Keep only blocks mentioning a distress term (with the budget cap applied).
 
@@ -246,8 +246,8 @@ def select_passages(text: str, terms: Optional[list[str]] = None,
     return out[:max_chars]
 
 
-def prepare_text(text: str, max_input_tokens: Optional[int] = None,
-                 terms: Optional[list[str]] = None, select: bool = True) -> str:
+def prepare_text(text: str, max_input_tokens: int | None = None,
+                 terms: list[str] | None = None, select: bool = True) -> str:
     """Select flag-relevant passages and enforce a token budget before the LLM."""
     out = select_passages(text, terms) if select else text
     if max_input_tokens:
@@ -257,7 +257,7 @@ def prepare_text(text: str, max_input_tokens: Optional[int] = None,
 
 def estimate_cost(prepared_texts: list[str], model: str, batch: bool = False,
                   out_tokens_each: int = 600, sys_tokens_each: int = 300
-                  ) -> tuple[int, int, Optional[float]]:
+                  ) -> tuple[int, int, float | None]:
     """Rough (input_tokens, output_tokens, usd) for a Tier-3 run.
 
     Returns usd=None when the model isn't a priced API model (e.g. the local
@@ -297,7 +297,7 @@ class CachedLanguageModel:
         path = os.path.join(self.cache_dir, f"{source.ticker.upper()}.json")
         if not os.path.exists(path):
             return []
-        with open(path, "r", encoding="utf-8") as fh:
+        with open(path, encoding="utf-8") as fh:
             rows = json.load(fh).get("signals", [])
         return [
             LanguageSignal(
@@ -394,7 +394,7 @@ class ClaudeCodeLanguageModel:
     stdin: str) -> str`` returning the CLI's stdout. Defaults to a subprocess.
     """
 
-    def __init__(self, claude_bin: str = "claude", model: Optional[str] = None,
+    def __init__(self, claude_bin: str = "claude", model: str | None = None,
                  timeout_s: int = 240, runner=None):
         self.claude_bin = claude_bin
         self.model = f"claude-code:{model}" if model else "claude-code"
@@ -444,8 +444,8 @@ class Tier3Analyzer:
     flag-relevant passages, capped to a token budget) to control cost.
     """
 
-    def __init__(self, model: LanguageModel, max_input_tokens: Optional[int] = None,
-                 focus_terms: Optional[list[str]] = None, select: bool = True):
+    def __init__(self, model: LanguageModel, max_input_tokens: int | None = None,
+                 focus_terms: list[str] | None = None, select: bool = True):
         self.model = model
         self.max_input_tokens = max_input_tokens
         self.focus_terms = focus_terms
@@ -468,8 +468,8 @@ class Tier3Analyzer:
 
 def analyze_filings_batch(model: ClaudeLanguageModel,
                           items: list[tuple[FilingSource, str]], as_of: dt.date,
-                          max_input_tokens: Optional[int] = None,
-                          focus_terms: Optional[list[str]] = None,
+                          max_input_tokens: int | None = None,
+                          focus_terms: list[str] | None = None,
                           select: bool = True) -> list[AdvisoryReport]:
     """Batch-analyze many filings in one job (PIT-gated, prepared, grounded).
 

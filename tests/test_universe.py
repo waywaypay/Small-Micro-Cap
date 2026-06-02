@@ -7,9 +7,13 @@ import yaml
 
 from landmine.data.facts import CompanyFacts
 from landmine.data.provider import facts_from_companyfacts
-from landmine.universe import (PublicFloatSizeProvider, StaticSizeProvider,
-                              build_universe, load_company_tickers,
-                              write_universe_yaml)
+from landmine.universe import (
+    PublicFloatSizeProvider,
+    StaticSizeProvider,
+    build_universe,
+    load_company_tickers,
+    write_universe_yaml,
+)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 UDIR = os.path.join(ROOT, "tests", "fixtures", "universe")

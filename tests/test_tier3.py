@@ -2,8 +2,15 @@
 import datetime as dt
 import os
 
-from landmine.tier3 import (CachedLanguageModel, FilingSource, LanguageSignal,
-                            Severity, SignalType, Tier3Analyzer, quote_is_grounded)
+from landmine.tier3 import (
+    CachedLanguageModel,
+    FilingSource,
+    LanguageSignal,
+    Severity,
+    SignalType,
+    Tier3Analyzer,
+    quote_is_grounded,
+)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FILINGS = os.path.join(ROOT, "tests", "fixtures", "filings")
@@ -68,6 +75,7 @@ def test_tier3_does_not_touch_the_deterministic_scorecard():
     # The quarantine guarantee: scoring never imports or runs Tier 3, and a
     # scorecard carries no T3_* results.
     import datetime as _dt
+
     from landmine.config import Config
     from landmine.data.provider import FixtureProvider
     from landmine.scoring import score_company
@@ -82,6 +90,7 @@ def test_claude_code_model_parses_cli_envelope_and_grounds():
     # ClaudeCodeLanguageModel shells out to `claude -p`; inject a fake runner that
     # returns the CLI's JSON envelope so we test parsing + grounding without a call.
     import json as _json
+
     from landmine.tier3 import ClaudeCodeLanguageModel
 
     inner = {"signals": [
@@ -157,6 +166,7 @@ def _succeeded(custom_id, signals_json):
 
 def test_batch_end_to_end_grounds_and_drops_hallucinations():
     import json as _json
+
     from landmine.tier3 import ClaudeLanguageModel, analyze_filings_batch
     cid = f"{SOURCE.ticker}|{SOURCE.accession}"
     payload = _json.dumps({"signals": [

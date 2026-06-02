@@ -32,7 +32,7 @@ def render() -> str:
 
 
 def test_matches_golden():
-    with open(GOLDEN, "r", encoding="utf-8") as fh:
+    with open(GOLDEN, encoding="utf-8") as fh:
         assert render() == fh.read(), (
             "Scorecard output drifted from golden file. If intended, "
             "regenerate: python -m tests.gen_golden"

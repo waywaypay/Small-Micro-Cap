@@ -5,6 +5,7 @@ HIGH-confidence dilution flag with accession-backed citations — the upgrade th
 MCP path can't provide.
 """
 import datetime as dt
+import os
 
 from landmine.concepts import SHARES_OUTSTANDING, STOCKHOLDERS_EQUITY
 from landmine.config import Config
@@ -12,7 +13,6 @@ from landmine.data.facts import CompanyFacts
 from landmine.data.provider import facts_from_companyfacts
 from landmine.models import Confidence, Status
 from landmine.scoring import score_company
-import os
 
 CFG = Config.load(os.path.join(os.path.dirname(os.path.dirname(__file__)),
                                "config", "thresholds.yaml"))

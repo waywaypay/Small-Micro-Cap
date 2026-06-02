@@ -17,8 +17,9 @@ from __future__ import annotations
 import datetime as dt
 import json
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Optional, Protocol
+from typing import Protocol
 
 from .concepts import PUBLIC_FLOAT
 
@@ -46,7 +47,7 @@ def _http_fetch(user_agent: str) -> Callable[[str], str]:
     return fetch
 
 
-def load_company_tickers(fetch: Optional[Callable[[str], str]] = None,
+def load_company_tickers(fetch: Callable[[str], str] | None = None,
                          user_agent: str = "") -> list[TickerRecord]:
     """Parse SEC company_tickers.json -> TickerRecords (CIK zero-padded)."""
     fetch = fetch or _http_fetch(user_agent)
@@ -64,7 +65,7 @@ def load_company_tickers(fetch: Optional[Callable[[str], str]] = None,
 
 
 class SizeProvider(Protocol):
-    def market_value(self, ticker: str, cik: str) -> Optional[float]:
+    def market_value(self, ticker: str, cik: str) -> float | None:
         ...
 
 
@@ -75,7 +76,7 @@ class StaticSizeProvider:
         # accept either zero-padded or bare CIK keys
         self._by_cik = {f"{int(k):010d}": float(v) for k, v in sizes.items()}
 
-    def market_value(self, ticker: str, cik: str) -> Optional[float]:
+    def market_value(self, ticker: str, cik: str) -> float | None:
         return self._by_cik.get(f"{int(cik):010d}") if cik else None
 
 
@@ -86,7 +87,7 @@ class PublicFloatSizeProvider:
         self.facts_provider = facts_provider
         self.as_of = as_of
 
-    def market_value(self, ticker: str, cik: str) -> Optional[float]:
+    def market_value(self, ticker: str, cik: str) -> float | None:
         try:
             facts = self.facts_provider.get_company_facts(ticker, cik)
         except Exception:

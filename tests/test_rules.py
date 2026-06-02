@@ -115,6 +115,7 @@ def test_sub1_current_ratio_is_cleared_when_cash_generative():
 def test_cash_generative_gate_is_configurable():
     # With the gate disabled, SBUX's negative equity flags again.
     import copy
+
     from landmine.config import Config
     cfg = Config(copy.deepcopy(CFG.raw))
     cfg.raw["rules"]["R3_NEGATIVE_EQUITY"]["require_negative_ocf"] = False

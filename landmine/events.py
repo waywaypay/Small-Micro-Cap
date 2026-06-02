@@ -19,7 +19,7 @@ import json
 import os
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, Protocol
+from typing import Protocol
 
 
 class EventType(str, Enum):
@@ -39,8 +39,8 @@ class Event:
     filed: dt.date                   # as-of stamp: first public disclosure date
     form: str
     detail: str = ""
-    accession: Optional[str] = None
-    period: Optional[str] = None     # the period the filing concerns, if any
+    accession: str | None = None
+    period: str | None = None     # the period the filing concerns, if any
     source: str = "SEC EDGAR (via MCP)"
 
 
@@ -51,19 +51,19 @@ class EventsView:
         self.as_of = as_of
         self._events = sorted(events, key=lambda e: e.filed, reverse=True)
 
-    def _within(self, e: Event, within_days: Optional[int]) -> bool:
+    def _within(self, e: Event, within_days: int | None) -> bool:
         if within_days is None:
             return True
         return (self.as_of - e.filed).days <= within_days
 
-    def latest(self, etype: EventType, within_days: Optional[int] = None
-               ) -> Optional[Event]:
+    def latest(self, etype: EventType, within_days: int | None = None
+               ) -> Event | None:
         for e in self._events:               # already newest-first
             if e.type is etype and self._within(e, within_days):
                 return e
         return None
 
-    def select(self, etype: EventType, within_days: Optional[int] = None
+    def select(self, etype: EventType, within_days: int | None = None
                ) -> list[Event]:
         return [e for e in self._events
                 if e.type is etype and self._within(e, within_days)]
@@ -72,7 +72,7 @@ class EventsView:
 class EventSet:
     """All known events for one company; ``as_of`` enforces no look-ahead."""
 
-    def __init__(self, ticker: str, cik: Optional[str], events: list[Event]):
+    def __init__(self, ticker: str, cik: str | None, events: list[Event]):
         self.ticker = ticker
         self.cik = cik
         self.events = events
@@ -82,7 +82,7 @@ class EventSet:
 
 
 class EventProvider(Protocol):
-    def get_events(self, ticker: str, cik: Optional[str]) -> EventSet:
+    def get_events(self, ticker: str, cik: str | None) -> EventSet:
         ...
 
 
@@ -95,11 +95,11 @@ class FixtureEventProvider:
     def has(self, ticker: str) -> bool:
         return os.path.exists(os.path.join(self.events_dir, f"{ticker.upper()}.json"))
 
-    def get_events(self, ticker: str, cik: Optional[str]) -> EventSet:
+    def get_events(self, ticker: str, cik: str | None) -> EventSet:
         path = os.path.join(self.events_dir, f"{ticker.upper()}.json")
         if not os.path.exists(path):
             return EventSet(ticker.upper(), cik, [])
-        with open(path, "r", encoding="utf-8") as fh:
+        with open(path, encoding="utf-8") as fh:
             doc = json.load(fh)
         events = [
             Event(

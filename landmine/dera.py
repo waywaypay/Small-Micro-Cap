@@ -19,7 +19,7 @@ from __future__ import annotations
 import csv
 import datetime as dt
 import os
-from typing import Iterable, Optional
+from collections.abc import Iterable
 
 from .concepts import GAAP_ALIASES, INSTANT_CONCEPTS
 from .data.facts import CompanyFacts, Fact
@@ -33,7 +33,7 @@ for _canonical, _aliases in GAAP_ALIASES.items():
 _QTRS_TO_QUALIFIER = {"0": "", "1": "Quarterly", "4": "Annual"}
 
 
-def _parse_dera_date(s: str) -> Optional[dt.date]:
+def _parse_dera_date(s: str) -> dt.date | None:
     s = (s or "").strip()
     if len(s) != 8 or not s.isdigit():
         return None
@@ -41,7 +41,7 @@ def _parse_dera_date(s: str) -> Optional[dt.date]:
 
 
 def facts_from_dera(sub_rows: Iterable[dict], num_rows: Iterable[dict],
-                    cik: Optional[str] = None) -> list[Fact]:
+                    cik: str | None = None) -> list[Fact]:
     """Map DERA sub.txt + num.txt rows to canonical Facts (pure, deterministic).
 
     Only entity-level numeric facts on known tags are kept. ``qtrs`` of 2/3
@@ -95,7 +95,7 @@ def facts_from_dera(sub_rows: Iterable[dict], num_rows: Iterable[dict],
 
 
 def _read_tsv(path: str) -> list[dict]:
-    with open(path, "r", encoding="utf-8", newline="") as fh:
+    with open(path, encoding="utf-8", newline="") as fh:
         return list(csv.DictReader(fh, delimiter="\t"))
 
 
@@ -108,15 +108,15 @@ class DeraProvider:
 
     def __init__(self, dataset_dir: str):
         self.dataset_dir = dataset_dir
-        self._sub: Optional[list[dict]] = None
-        self._num: Optional[list[dict]] = None
+        self._sub: list[dict] | None = None
+        self._num: list[dict] | None = None
 
     def _load(self) -> None:
         if self._sub is None:
             self._sub = _read_tsv(os.path.join(self.dataset_dir, "sub.txt"))
             self._num = _read_tsv(os.path.join(self.dataset_dir, "num.txt"))
 
-    def get_company_facts(self, ticker: str, cik: Optional[str]) -> CompanyFacts:
+    def get_company_facts(self, ticker: str, cik: str | None) -> CompanyFacts:
         if not cik:
             raise ValueError(f"DERA path requires a CIK for {ticker}")
         self._load()

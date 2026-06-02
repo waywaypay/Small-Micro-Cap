@@ -9,7 +9,7 @@ rules structurally cannot see.
 """
 from __future__ import annotations
 
-from typing import Optional
+from typing import Protocol
 
 from .config import RuleConfig
 from .events import Event, EventsView, EventType
@@ -33,7 +33,7 @@ def _pass(code: str, reason: str, raw: dict) -> RuleResult:
 
 def _flag(code: str, reason: str, sev: Severity, score: float,
           raw: dict, threshold: dict, cites: list[Citation],
-          computed: Optional[float] = None) -> RuleResult:
+          computed: float | None = None) -> RuleResult:
     return RuleResult(code, reason, Status.FLAG, sev, score, raw, threshold,
                       cites, computed)
 
@@ -128,7 +128,15 @@ class DilutionEventsRule:
                      cites, float(n))
 
 
-ALL_T2_RULES = [
+class _T2Rule(Protocol):
+    """Structural type for a Tier-2 rule: a code plus evaluate over an EventsView."""
+
+    code: str
+
+    def evaluate(self, view: EventsView, cfg: RuleConfig) -> RuleResult: ...
+
+
+ALL_T2_RULES: list[_T2Rule] = [
     GoingConcernRule(),
     MaterialWeaknessRule(),
     RestatementRule(),

@@ -13,7 +13,6 @@ company is not a runway risk).
 from __future__ import annotations
 
 from statistics import fmean
-from typing import Optional
 
 from ..concepts import CASH, OPERATING_CASH_FLOW
 from ..config import RuleConfig
@@ -23,7 +22,7 @@ from .base import citation, insufficient, passed
 
 
 def _quarterly_burn(view: AsOfView, window: int
-                    ) -> Optional[tuple[float, list[ResolvedFact], str]]:
+                    ) -> tuple[float, list[ResolvedFact], str] | None:
     """Return (quarterly_burn, facts_used, method) or None if no OCF at all."""
     quarters = view.series(OPERATING_CASH_FLOW, qualifier="Quarterly")
     consec: list[ResolvedFact] = []

@@ -10,25 +10,24 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import json
 import os
 import sys
 
 import yaml
 
-import json
-
 from .calibrate import calibrate
 from .config import Config
 from .data.provider import FixtureProvider, HttpCompanyFactsProvider
 from .models import Status
-from .scoring import score_company, weighted_total
 from .persistence import write_json, write_sqlite
+from .scoring import score_company, weighted_total
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def _load_universe(path: str) -> dict[str, str]:
-    with open(path, "r", encoding="utf-8") as fh:
+    with open(path, encoding="utf-8") as fh:
         return yaml.safe_load(fh).get("universe", {})
 
 
@@ -119,7 +118,7 @@ def _print_calibration(rep: dict) -> None:
 
 def cmd_calibrate(args) -> int:
     cfg = Config.load(args.config)
-    with open(args.labels, "r", encoding="utf-8") as fh:
+    with open(args.labels, encoding="utf-8") as fh:
         label_doc = yaml.safe_load(fh)
     labels = label_doc.get("labels", {})
     default_as_of = dt.date.fromisoformat(label_doc.get("default_as_of", args.as_of))
@@ -140,7 +139,7 @@ def _load_labels_csv(path: str):
     """CSV with columns: ticker, label, [cik], [as_of] -> (labels, universe)."""
     import csv
     labels, universe = {}, {}
-    with open(path, "r", encoding="utf-8", newline="") as fh:
+    with open(path, encoding="utf-8", newline="") as fh:
         for row in csv.DictReader(fh):
             t = row["ticker"].strip().upper()
             labels[t] = {"label": row["label"].strip()}
@@ -196,8 +195,12 @@ def _filing_provider(args):
 
 
 def _tier3_model(args):
-    from .tier3 import (DEFAULT_MODEL, CachedLanguageModel,
-                        ClaudeCodeLanguageModel, ClaudeLanguageModel)
+    from .tier3 import (
+        DEFAULT_MODEL,
+        CachedLanguageModel,
+        ClaudeCodeLanguageModel,
+        ClaudeLanguageModel,
+    )
     if args.source == "claude":
         return ClaudeLanguageModel(model=args.model or DEFAULT_MODEL)
     if args.source == "claude-code":
@@ -207,6 +210,7 @@ def _tier3_model(args):
 
 def cmd_language(args) -> int:
     import datetime as _dt
+
     from .tier3 import AdvisoryReport, Tier3Analyzer
 
     as_of = _dt.date.fromisoformat(args.as_of)
@@ -246,7 +250,7 @@ def cmd_language(args) -> int:
 
 def _select_tickers(args, universe: dict) -> list[str]:
     if args.from_scorecard:
-        with open(args.from_scorecard, "r", encoding="utf-8") as fh:
+        with open(args.from_scorecard, encoding="utf-8") as fh:
             cards = json.load(fh)
         # Tier 3 only on names the deterministic tiers flagged.
         return [c["ticker"] for c in cards if c.get("num_flags", 0) > 0]
@@ -257,8 +261,14 @@ def _select_tickers(args, universe: dict) -> list[str]:
 
 def cmd_language_batch(args) -> int:
     import datetime as _dt
-    from .tier3 import (DEFAULT_MODEL, Tier3Analyzer, analyze_filings_batch,
-                        estimate_cost, prepare_text)
+
+    from .tier3 import (
+        DEFAULT_MODEL,
+        Tier3Analyzer,
+        analyze_filings_batch,
+        estimate_cost,
+        prepare_text,
+    )
 
     as_of = _dt.date.fromisoformat(args.as_of)
     universe = _load_universe(args.universe)
@@ -312,8 +322,15 @@ def cmd_language_batch(args) -> int:
 
 def cmd_universe(args) -> int:
     import datetime as _dt
-    from .universe import (PublicFloatSizeProvider, StaticSizeProvider,
-                          build_universe, load_company_tickers, write_universe_yaml)
+
+    from .universe import (
+        PublicFloatSizeProvider,
+        SizeProvider,
+        StaticSizeProvider,
+        build_universe,
+        load_company_tickers,
+        write_universe_yaml,
+    )
 
     if args.source == "fixture":
         path = args.company_tickers
@@ -322,9 +339,9 @@ def cmd_universe(args) -> int:
         records = load_company_tickers(user_agent=args.user_agent)
 
     if args.size_source == "static":
-        with open(args.sizes, "r", encoding="utf-8") as fh:
+        with open(args.sizes, encoding="utf-8") as fh:
             raw = {k: v for k, v in json.load(fh).items() if not k.startswith("_")}
-        size = StaticSizeProvider(raw)
+        size: SizeProvider = StaticSizeProvider(raw)
     else:  # public-float via companyfacts
         size = PublicFloatSizeProvider(
             HttpCompanyFactsProvider(user_agent=args.user_agent,
@@ -389,29 +406,29 @@ def build_parser() -> argparse.ArgumentParser:
     b.add_argument("--json", default=os.path.join(_ROOT, "out", "backtest.json"))
     b.set_defaults(func=cmd_backtest)
 
-    l = sub.add_parser("language",
-                       help="Tier 3 advisory language signals (non-deterministic)")
-    l.add_argument("--ticker", required=True)
-    l.add_argument("--as-of", default="2026-06-02")
-    l.add_argument("--source", choices=["cached", "claude", "claude-code"],
-                   default="cached",
-                   help="cached = frozen/offline (default); claude = Anthropic SDK "
-                        "(needs ANTHROPIC_API_KEY); claude-code = this Claude Code "
-                        "session's plan via the `claude` CLI")
-    l.add_argument("--model", default="",
-                   help="model id/alias; blank uses the session/provider default")
-    l.add_argument("--universe", default=os.path.join(_ROOT, "config", "universe.yaml"))
-    l.add_argument("--filing-source", choices=["fixture", "edgar"], default="fixture",
-                   help="fixture = frozen excerpts (default); edgar = fetch from SEC")
-    l.add_argument("--user-agent", default="Deerpark Research max@deerpark.io")
-    l.add_argument("--filings", default=os.path.join(_ROOT, "tests", "fixtures", "filings"))
-    l.add_argument("--tier3-cache", default=os.path.join(_ROOT, "tests", "fixtures", "tier3"))
-    l.add_argument("--max-input-tokens", type=int, default=0,
-                   help="cap filing text sent to the LLM (0 = no cap)")
-    l.add_argument("--no-select", action="store_true",
-                   help="send full text instead of only flag-relevant passages")
-    l.add_argument("--json", default="")
-    l.set_defaults(func=cmd_language)
+    lang = sub.add_parser("language",
+                          help="Tier 3 advisory language signals (non-deterministic)")
+    lang.add_argument("--ticker", required=True)
+    lang.add_argument("--as-of", default="2026-06-02")
+    lang.add_argument("--source", choices=["cached", "claude", "claude-code"],
+                      default="cached",
+                      help="cached = frozen/offline (default); claude = Anthropic SDK "
+                           "(needs ANTHROPIC_API_KEY); claude-code = this Claude Code "
+                           "session's plan via the `claude` CLI")
+    lang.add_argument("--model", default="",
+                      help="model id/alias; blank uses the session/provider default")
+    lang.add_argument("--universe", default=os.path.join(_ROOT, "config", "universe.yaml"))
+    lang.add_argument("--filing-source", choices=["fixture", "edgar"], default="fixture",
+                      help="fixture = frozen excerpts (default); edgar = fetch from SEC")
+    lang.add_argument("--user-agent", default="Deerpark Research max@deerpark.io")
+    lang.add_argument("--filings", default=os.path.join(_ROOT, "tests", "fixtures", "filings"))
+    lang.add_argument("--tier3-cache", default=os.path.join(_ROOT, "tests", "fixtures", "tier3"))
+    lang.add_argument("--max-input-tokens", type=int, default=0,
+                      help="cap filing text sent to the LLM (0 = no cap)")
+    lang.add_argument("--no-select", action="store_true",
+                      help="send full text instead of only flag-relevant passages")
+    lang.add_argument("--json", default="")
+    lang.set_defaults(func=cmd_language)
 
     lb = sub.add_parser("language-batch",
                         help="Tier 3 over many flagged names in one batched job")

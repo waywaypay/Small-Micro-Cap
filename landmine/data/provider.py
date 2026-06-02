@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import datetime as dt
 import os
-from typing import Optional, Protocol
+from typing import Protocol
 
 from ..concepts import GAAP_ALIASES, INSTANT_CONCEPTS
 from .facts import CompanyFacts, Fact
@@ -27,7 +27,7 @@ from .mcp_parser import parse_mcp_text
 
 
 class FactsProvider(Protocol):
-    def get_company_facts(self, ticker: str, cik: Optional[str]) -> CompanyFacts:
+    def get_company_facts(self, ticker: str, cik: str | None) -> CompanyFacts:
         ...
 
 
@@ -37,14 +37,14 @@ class FixtureProvider:
     def __init__(self, fixtures_dir: str):
         self.fixtures_dir = fixtures_dir
 
-    def get_company_facts(self, ticker: str, cik: Optional[str]) -> CompanyFacts:
+    def get_company_facts(self, ticker: str, cik: str | None) -> CompanyFacts:
         path = os.path.join(self.fixtures_dir, f"{ticker.upper()}.txt")
         if not os.path.exists(path):
             raise FileNotFoundError(
                 f"No fixture for {ticker} at {path}. "
                 f"Capture it from the SEC MCP server first."
             )
-        with open(path, "r", encoding="utf-8") as fh:
+        with open(path, encoding="utf-8") as fh:
             text = fh.read()
         return CompanyFacts(ticker.upper(), cik, parse_mcp_text(text, ticker))
 
@@ -60,7 +60,7 @@ class HttpCompanyFactsProvider:
 
     BASE = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik:010d}.json"
 
-    def __init__(self, user_agent: str, cache_dir: Optional[str] = None,
+    def __init__(self, user_agent: str, cache_dir: str | None = None,
                  min_interval_s: float = 0.2):
         if not user_agent or "@" not in user_agent:
             raise ValueError("SEC requires a declared User-Agent with contact email")
@@ -77,7 +77,7 @@ class HttpCompanyFactsProvider:
         if self.cache_dir:
             cpath = os.path.join(self.cache_dir, f"CIK{cik_int:010d}.json")
             if os.path.exists(cpath):
-                with open(cpath, "r", encoding="utf-8") as fh:
+                with open(cpath, encoding="utf-8") as fh:
                     return json.load(fh)
         url = self.BASE.format(cik=cik_int)
         req = urllib.request.Request(url, headers={"User-Agent": self.user_agent})
@@ -90,7 +90,7 @@ class HttpCompanyFactsProvider:
                 json.dump(data, fh)
         return data
 
-    def get_company_facts(self, ticker: str, cik: Optional[str]) -> CompanyFacts:
+    def get_company_facts(self, ticker: str, cik: str | None) -> CompanyFacts:
         if not cik:
             raise ValueError(f"companyfacts path requires a CIK for {ticker}")
         data = self._fetch_json(cik)
@@ -98,7 +98,7 @@ class HttpCompanyFactsProvider:
                             facts_from_companyfacts(data, cik))
 
 
-def facts_from_companyfacts(data: dict, cik: Optional[str] = None) -> list[Fact]:
+def facts_from_companyfacts(data: dict, cik: str | None = None) -> list[Fact]:
     """Pure mapping of a companyfacts JSON document to canonical Facts.
 
     Picks, per canonical concept, the first present us-gaap/dei alias, and keeps

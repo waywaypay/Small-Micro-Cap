@@ -22,13 +22,14 @@ import datetime as dt
 import json
 import os
 import re
-from typing import Callable, Optional, Protocol
+from collections.abc import Callable
+from typing import Protocol
 
 from .tier3 import FilingSource, select_passages
 
 
 class FilingTextProvider(Protocol):
-    def get_relevant_sections(self, ticker: str, cik: Optional[str],
+    def get_relevant_sections(self, ticker: str, cik: str | None,
                               as_of: dt.date) -> list[tuple[FilingSource, str]]:
         ...
 
@@ -44,18 +45,17 @@ class FixtureFilingTextProvider:
         path = os.path.join(self.filings_dir, "manifest.json")
         if not os.path.exists(path):
             return {}
-        with open(path, "r", encoding="utf-8") as fh:
+        with open(path, encoding="utf-8") as fh:
             return json.load(fh)
 
-    def get_relevant_sections(self, ticker: str, cik: Optional[str],
+    def get_relevant_sections(self, ticker: str, cik: str | None,
                               as_of: dt.date) -> list[tuple[FilingSource, str]]:
         out = []
         for e in self._manifest().get(ticker.upper(), []):
             filed = dt.date.fromisoformat(e["filed"])
             if filed > as_of:
                 continue                       # PIT
-            with open(os.path.join(self.filings_dir, e["file"]),
-                      "r", encoding="utf-8") as fh:
+            with open(os.path.join(self.filings_dir, e["file"]), encoding="utf-8") as fh:
                 text = fh.read()
             out.append((FilingSource(ticker=ticker.upper(), form=e["form"],
                                      filed=filed, section=e["section"],
@@ -96,7 +96,7 @@ class EdgarFilingTextProvider:
     SUBMISSIONS = "https://data.sec.gov/submissions/CIK{cik:010d}.json"
     ARCHIVE = "https://www.sec.gov/Archives/edgar/data/{cik}/{accn}/{doc}"
 
-    def __init__(self, user_agent: str, fetch: Optional[Callable[[str], str]] = None,
+    def __init__(self, user_agent: str, fetch: Callable[[str], str] | None = None,
                  forms: tuple[str, ...] = ("10-K", "10-Q")):
         if not user_agent or "@" not in user_agent:
             raise ValueError("SEC requires a declared User-Agent with contact email")
@@ -112,7 +112,7 @@ class EdgarFilingTextProvider:
         with urllib.request.urlopen(req, timeout=30) as resp:
             return resp.read().decode("utf-8", "replace")
 
-    def get_relevant_sections(self, ticker: str, cik: Optional[str],
+    def get_relevant_sections(self, ticker: str, cik: str | None,
                               as_of: dt.date) -> list[tuple[FilingSource, str]]:
         if not cik:
             raise ValueError(f"EDGAR path requires a CIK for {ticker}")
@@ -121,7 +121,7 @@ class EdgarFilingTextProvider:
         recent = sub.get("filings", {}).get("recent", {})
         rows = list(zip(recent.get("form", []), recent.get("filingDate", []),
                         recent.get("accessionNumber", []),
-                        recent.get("primaryDocument", [])))
+                        recent.get("primaryDocument", []), strict=False))
         # newest filing of a wanted form, filed on/before as_of (point-in-time)
         pick = None
         for form, filed, accn, doc in rows:
