@@ -12,7 +12,7 @@ from typing import Optional, Protocol
 
 from ..config import RuleConfig
 from ..data.facts import AsOfView, ResolvedFact
-from ..models import Citation, RuleResult, Severity, Status
+from ..models import Citation, Confidence, RuleResult, Severity, Status
 
 
 class Rule(Protocol):
@@ -48,7 +48,8 @@ def insufficient(code: str, missing: list[str], threshold: dict) -> RuleResult:
 
 
 def passed(code: str, reason: str, raw: dict, threshold: dict,
-           citations: list[Citation], computed: Optional[float]) -> RuleResult:
+           citations: list[Citation], computed: Optional[float],
+           confidence: Confidence = Confidence.HIGH) -> RuleResult:
     return RuleResult(
         rule_code=code,
         reason=reason,
@@ -59,4 +60,5 @@ def passed(code: str, reason: str, raw: dict, threshold: dict,
         threshold=threshold,
         citations=citations,
         computed_value=computed,
+        confidence=confidence,
     )

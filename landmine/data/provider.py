@@ -94,41 +94,50 @@ class HttpCompanyFactsProvider:
         if not cik:
             raise ValueError(f"companyfacts path requires a CIK for {ticker}")
         data = self._fetch_json(cik)
-        us = data.get("facts", {})
-        facts: list[Fact] = []
-        for canonical, aliases in GAAP_ALIASES.items():
-            entry = None
-            namespace = None
-            for ns in ("us-gaap", "dei"):
-                for alias in aliases:
-                    if alias in us.get(ns, {}):
-                        entry, namespace = us[ns][alias], ns
-                        break
-                if entry:
+        return CompanyFacts(ticker.upper(), cik,
+                            facts_from_companyfacts(data, cik))
+
+
+def facts_from_companyfacts(data: dict, cik: Optional[str] = None) -> list[Fact]:
+    """Pure mapping of a companyfacts JSON document to canonical Facts.
+
+    Picks, per canonical concept, the first present us-gaap/dei alias, and keeps
+    only entity-level rows. Each XBRL fact's ``filed`` becomes the as-of stamp
+    and ``accn`` the citation. Side-effect-free and deterministic, so it is unit
+    tested against a synthetic document without any network.
+    """
+    us = data.get("facts", {})
+    facts: list[Fact] = []
+    for canonical, aliases in GAAP_ALIASES.items():
+        entry = None
+        for ns in ("us-gaap", "dei"):
+            for alias in aliases:
+                if alias in us.get(ns, {}):
+                    entry = us[ns][alias]
                     break
-            if not entry:
-                continue  # concept genuinely absent -> downstream INSUFFICIENT
-            for unit_rows in entry.get("units", {}).values():
-                for row in unit_rows:
-                    end = row.get("end")
-                    filed = row.get("filed")
-                    val = row.get("val")
-                    if end is None or filed is None or val is None:
-                        continue
-                    is_instant = canonical in INSTANT_CONCEPTS
-                    qualifier = ""
-                    if not is_instant and row.get("start"):
-                        span = (dt.date.fromisoformat(end)
-                                - dt.date.fromisoformat(row["start"])).days
-                        qualifier = "Annual" if span > 200 else "Quarterly"
-                    facts.append(Fact(
-                        concept=canonical,
-                        period_end=dt.date.fromisoformat(end),
-                        filed=dt.date.fromisoformat(filed),
-                        value=float(val),
-                        form=row.get("form", ""),
-                        qualifier=qualifier,
-                        accession=row.get("accn"),
-                        source="SEC EDGAR XBRL companyfacts",
-                    ))
-        return CompanyFacts(ticker.upper(), cik, facts)
+            if entry:
+                break
+        if not entry:
+            continue  # concept genuinely absent -> downstream INSUFFICIENT_DATA
+        is_instant = canonical in INSTANT_CONCEPTS
+        for unit_rows in entry.get("units", {}).values():
+            for row in unit_rows:
+                end, filed, val = row.get("end"), row.get("filed"), row.get("val")
+                if end is None or filed is None or val is None:
+                    continue
+                qualifier = ""
+                if not is_instant and row.get("start"):
+                    span = (dt.date.fromisoformat(end)
+                            - dt.date.fromisoformat(row["start"])).days
+                    qualifier = "Annual" if span > 200 else "Quarterly"
+                facts.append(Fact(
+                    concept=canonical,
+                    period_end=dt.date.fromisoformat(end),
+                    filed=dt.date.fromisoformat(filed),
+                    value=float(val),
+                    form=row.get("form", ""),
+                    qualifier=qualifier,
+                    accession=row.get("accn"),
+                    source="SEC EDGAR XBRL companyfacts",
+                ))
+    return facts

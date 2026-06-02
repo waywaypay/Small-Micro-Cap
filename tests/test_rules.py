@@ -38,7 +38,7 @@ def test_cash_runway_flags_wkhs_critical():
     r = _result(_card("WKHS"), "R2_CASH_RUNWAY")
     assert r.status is Status.FLAG
     assert r.computed_value < 4.0
-    assert r.raw_values["quarterly_operating_cash_flow"] < 0
+    assert r.raw_values["quarterly_operating_burn"] < 0
     assert r.citations  # carries provenance
 
 
@@ -54,10 +54,52 @@ def test_liquidity_pass_on_healthy():
     assert r.computed_value >= 1.0
 
 
-def test_dilution_flags_cenn():
-    r = _result(_card("CENN"), "R1_DILUTION")
+def test_dilution_flags_bynd_low_confidence():
+    # BYND's debt-for-equity exchange ~6x'd the share count. The MCP NI/EPS
+    # derivation catches it but is marked LOW confidence with capped severity.
+    from landmine.models import Confidence, Severity
+    r = _result(_card("BYND"), "R1_DILUTION")
     assert r.status is Status.FLAG
     assert r.computed_value > 0.25
+    assert r.confidence is Confidence.LOW
+    assert r.severity.rank <= Severity.MEDIUM.rank      # estimate can't be high-sev
+    assert r.severity_score <= 0.5
+
+
+def test_dilution_noisy_series_is_insufficient_not_a_flag():
+    # CENN's EPS-derived share series lurches wildly across periods -> the rule
+    # must refuse to flag rather than emit a number it can't defend.
+    r = _result(_card("CENN"), "R1_DILUTION")
+    assert r.status is Status.INSUFFICIENT_DATA
+
+
+def test_negative_equity_flags_amc():
+    r = _result(_card("AMC"), "R3_NEGATIVE_EQUITY")
+    assert r.status is Status.FLAG
+    assert r.computed_value < 0
+    assert r.citations
+
+
+def test_liquidity_flags_amc():
+    r = _result(_card("AMC"), "R4_LIQUIDITY")
+    assert r.status is Status.FLAG
+    assert r.computed_value < 1.0
+
+
+def test_earnings_quality_flags_bynd_annual_accruals():
+    # +$219M "profit" (debt-exchange gain) against -$145M operating cash flow.
+    r = _result(_card("BYND"), "R5_EARNINGS_QUALITY")
+    assert r.status is Status.FLAG
+    assert r.computed_value > 0.10
+    assert r.raw_values["net_income"] > 0
+    assert r.raw_values["operating_cash_flow"] < 0
+
+
+def test_cash_runway_burn_method_recorded():
+    r = _result(_card("AMC"), "R2_CASH_RUNWAY")
+    assert r.status is Status.FLAG
+    assert "burn_method" in r.raw_values
+    assert r.raw_values["burn_periods"]
 
 
 def test_every_result_has_threshold_and_reason():

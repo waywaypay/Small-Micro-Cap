@@ -71,7 +71,10 @@ class AsOfView:
         """
         out = [rf for (c, _), rf in self._resolved.items() if c == concept]
         if qualifier is not None:
-            out = [rf for rf in out if rf.fact.qualifier == qualifier]
+            # "" means cadence-unknown (e.g. a restatement-line vintage); treat
+            # it as a wildcard so such facts aren't silently dropped — the value
+            # still belongs to this concept/period, it just lacks a stated cadence.
+            out = [rf for rf in out if rf.fact.qualifier in (qualifier, "")]
         return sorted(out, key=lambda rf: rf.period_end, reverse=True)
 
     def latest(self, concept: str, qualifier: Optional[str] = None) -> Optional[ResolvedFact]:

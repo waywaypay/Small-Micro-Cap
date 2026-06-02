@@ -20,6 +20,12 @@ rules:
     min_abs_eps: 0.05
     # period_end spacing (days) that counts as "one year ago".
     yoy_window_days: [300, 430]
+    # derived (NI/EPS) path only: if implied share count jumps more than this
+    # multiple between consecutive periods, the estimate is too noisy to flag.
+    max_consecutive_jump: 3.0
+    # derived path is low-confidence; cap its severity_score so an estimate
+    # never produces a high-severity flag.
+    low_confidence_severity_cap: 0.5
     severity_cap: 1.00          # +100% YoY -> score 1.0
     severity_bands: [0.25, 0.50, 1.00, 2.00]
 
@@ -27,6 +33,8 @@ rules:
     enabled: true
     # flag when runway < this many quarters AND operating cash flow < 0.
     min_runway_quarters: 4.0
+    # average up to this many consecutive trailing quarters for the burn rate.
+    burn_window_quarters: 4
     severity_cap: 4.0           # 0 quarters of runway -> score 1.0
     severity_bands: [0.0, 1.0, 2.0, 3.0]   # quarters of runway SHORTFALL
 

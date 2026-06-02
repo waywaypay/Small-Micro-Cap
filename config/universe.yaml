@@ -2,13 +2,17 @@
 # permanent EDGAR identifier; tickers change on rename/delisting). Swap freely.
 #
 # Distress controls (flags expected to fire):
-#   WKHS  Workhorse Group   - going concern, material weakness, <1Q cash runway
-#   CENN  Cenntro Inc.      - material weakness, sub-2Q runway, heavy dilution
+#   WKHS  Workhorse Group   - <1Q cash runway (R2, CRITICAL)
+#   CENN  Cenntro Inc.      - sub-2Q runway (R2); dilution series too noisy to trust (R1 n/a)
+#   BYND  Beyond Meat       - negative equity (R3), debt-exchange accruals (R5), 6x dilution (R1)
+#   AMC   AMC Entertainment - negative equity (R3), current ratio 0.35 (R4), short runway (R2)
 # Healthy controls (expected to pass):
 #   AAPL  Apple Inc.
 #   MSFT  Microsoft Corp.
 universe:
   WKHS: "0001425287"
   CENN: "0001707919"
+  BYND: "0001655210"
+  AMC: "0001411579"
   AAPL: "0000320193"
   MSFT: "0000789019"

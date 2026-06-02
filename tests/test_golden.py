@@ -1,4 +1,8 @@
-"""Same inputs + same as-of date => byte-identical output."""
+"""Golden-file regression: the full scorecard JSON for the universe, frozen.
+
+Any change in rule output (intended or not) shows up as a diff here. Regenerate
+deliberately with:  python -m tests.gen_golden
+"""
 import datetime as dt
 import os
 
@@ -9,24 +13,24 @@ from landmine.scoring import score_company
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FIX = os.path.join(ROOT, "tests", "fixtures", "raw")
+GOLDEN = os.path.join(ROOT, "tests", "fixtures", "golden_2026-06-02.json")
 CFG = Config.load(os.path.join(ROOT, "config", "thresholds.yaml"))
 UNIVERSE = {"WKHS": "0001425287", "CENN": "0001707919",
             "BYND": "0001655210", "AMC": "0001411579",
             "AAPL": "0000320193", "MSFT": "0000789019"}
 
 
-def _run(as_of: dt.date) -> str:
+def render() -> str:
     provider = FixtureProvider(FIX)
+    as_of = dt.date(2026, 6, 2)
     cards = [score_company(provider.get_company_facts(t, c), as_of, CFG)
              for t, c in sorted(UNIVERSE.items())]
-    return scorecards_to_json(cards, CFG)
+    return scorecards_to_json(cards, CFG) + "\n"
 
 
-def test_byte_identical_reruns():
-    as_of = dt.date(2026, 6, 2)
-    assert _run(as_of) == _run(as_of)
-
-
-def test_distinct_asof_dates_differ():
-    # PIT means a different as-of generally yields different output.
-    assert _run(dt.date(2026, 6, 2)) != _run(dt.date(2025, 6, 1))
+def test_matches_golden():
+    with open(GOLDEN, "r", encoding="utf-8") as fh:
+        assert render() == fh.read(), (
+            "Scorecard output drifted from golden file. If intended, "
+            "regenerate: python -m tests.gen_golden"
+        )

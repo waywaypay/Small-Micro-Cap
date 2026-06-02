@@ -21,15 +21,22 @@ class EarningsQualityRule:
         max_accruals = float(cfg.get("max_accruals_ratio", 0.10))
         threshold = {"max_accruals_ratio": max_accruals}
 
-        # Find the most recent period_end where NI, OCF and Assets all exist.
+        # Accruals are an annual-scale measure, so prefer the most recent ANNUAL
+        # period where NI, OCF and Assets all exist; fall back to the latest
+        # common period only if no annual one is available. Using the annual
+        # avoids quarterly noise and catches one-time non-cash gains (e.g. a
+        # debt-exchange "profit" reported while cash is burning).
         ni_series = {rf.period_end: rf for rf in view.series(NET_INCOME)}
         ocf_series = {rf.period_end: rf for rf in view.series(OPERATING_CASH_FLOW)}
-        chosen = None
+        common = []
         for pe in sorted(set(ni_series) & set(ocf_series), reverse=True):
             assets = view.at(TOTAL_ASSETS, pe)
             if assets and assets.value > 0:
-                chosen = (pe, ni_series[pe], ocf_series[pe], assets)
-                break
+                common.append((pe, ni_series[pe], ocf_series[pe], assets))
+
+        annual = [c for c in common
+                  if c[1].fact.qualifier == "Annual" or c[2].fact.qualifier == "Annual"]
+        chosen = (annual or common or [None])[0]
 
         if chosen is None:
             return insufficient(

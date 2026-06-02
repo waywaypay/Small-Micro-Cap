@@ -31,7 +31,22 @@ MCP ingestion path does not expose them (see *Data sources*).
 | R4_LIQUIDITY | Liquidity stress | current ratio < 1.0 |
 | R5_EARNINGS_QUALITY | Earnings quality | (net income − operating cash flow) ÷ total assets > threshold |
 
-A missing input is **`INSUFFICIENT_DATA`**, never a silent pass.
+A missing input is **`INSUFFICIENT_DATA`**, never a silent pass. Every result
+also carries a **confidence** (`high`/`low`): values derived/approximated on the
+MCP path (e.g. shares-from-EPS) are marked `low` and have their severity capped,
+so an estimate can never masquerade as a high-severity flag.
+
+Notes on rule mechanics:
+- **R1** uses raw `dei:EntityCommonStockSharesOutstanding` on the companyfacts
+  path (`high` confidence). On the MCP path it derives shares from
+  `NetIncome / EPS-basic` (`low` confidence); if that series is internally
+  inconsistent it returns `INSUFFICIENT_DATA` rather than flag.
+- **R2** burn is smoothed: it averages consecutive trailing quarters when
+  available, else annualizes the latest annual figure, else uses the last
+  quarter (`burn_method` is recorded in the output).
+- **R5** is evaluated on the latest **annual** period (accruals are an
+  annual-scale measure), which catches one-time non-cash gains — e.g. BYND's
+  debt-exchange "profit" booked while operating cash flow was deeply negative.
 
 ## Quick start
 
@@ -50,14 +65,25 @@ artifact).
 
 ```
 TICKER  FLAGS  MAXSEV    SCORE   FLAGGED RULES
-CENN    2      HIGH      2.02    R1_DILUTION, R2_CASH_RUNWAY
+BYND    3      CRITICAL  1.55    R1_DILUTION, R3_NEGATIVE_EQUITY, R5_EARNINGS_QUALITY
+AMC     3      CRITICAL  1.54    R2_CASH_RUNWAY, R3_NEGATIVE_EQUITY, R4_LIQUIDITY
 WKHS    1      CRITICAL  1.49    R2_CASH_RUNWAY
+CENN    1      HIGH      1.02    R2_CASH_RUNWAY
 AAPL    0      NONE      0.00
 MSFT    0      NONE      0.00
 ```
 
-Two known-distress names fire (Workhorse: <1-quarter runway; Cenntro: short
-runway + heavy post-split dilution); two healthy controls pass cleanly.
+Each rule R1–R5 fires on at least one real distress name, and both healthy
+controls pass cleanly. Note two deliberate behaviours:
+
+- **CENN dilution is `INSUFFICIENT_DATA`, not a flag.** Its EPS-derived share
+  series lurches across periods (split-adjustment noise); the rule refuses to
+  emit a number it can't defend rather than print a shaky 180%.
+- **BYND dilution is a `low`-confidence flag with capped severity.** The
+  NetIncome/EPS estimate catches the ~6× debt-for-equity dilution, but because
+  it's an estimate its severity is capped (an estimate can't read CRITICAL).
+  The companyfacts path would report this `high` confidence from raw share
+  counts — see `tests/test_companyfacts.py`.
 
 ## Architecture
 

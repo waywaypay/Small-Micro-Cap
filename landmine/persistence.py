@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS findings (
     flag INTEGER NOT NULL,
     severity TEXT NOT NULL,
     severity_score REAL NOT NULL,
+    confidence TEXT NOT NULL,
     computed_value REAL,
     raw_values TEXT NOT NULL,
     threshold TEXT NOT NULL,
@@ -68,12 +69,12 @@ def write_sqlite(cards: Iterable[Scorecard], cfg: Config, db_path: str) -> None:
         for card in cards:
             for r in card.results:
                 con.execute(
-                    "INSERT INTO findings VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                    "INSERT INTO findings VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (
                         card.ticker, card.cik, card.as_of.isoformat(), r.rule_code,
                         r.status.value, 1 if r.status.value == "FLAG" else 0,
                         r.severity.value, round(r.severity_score, 6),
-                        r.computed_value,
+                        r.confidence.value, r.computed_value,
                         _canonical(r.raw_values), _canonical(r.threshold),
                         _canonical([c.to_dict() for c in r.citations]),
                     ),

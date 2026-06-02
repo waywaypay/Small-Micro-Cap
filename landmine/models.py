@@ -56,6 +56,20 @@ class Citation:
         return asdict(self)
 
 
+class Confidence(str, Enum):
+    """How trustworthy the inputs behind a result are.
+
+    HIGH  — direct, filing-grade values (e.g. raw period-end share count).
+    LOW   — a derived/approximated input (e.g. shares = NetIncome / EPS on the
+            MCP path). A LOW-confidence result has its severity capped so an
+            estimate can never masquerade as a high-severity flag.
+    """
+
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
+
 @dataclass(frozen=True)
 class RuleResult:
     """The full, auditable result of one rule for one company / as-of date."""
@@ -69,6 +83,7 @@ class RuleResult:
     threshold: dict[str, Any]      # the configured threshold(s) applied
     citations: list[Citation] = field(default_factory=list)
     computed_value: Optional[float] = None  # the headline metric (e.g. runway)
+    confidence: Confidence = Confidence.HIGH
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -77,6 +92,7 @@ class RuleResult:
             "status": self.status.value,
             "severity": self.severity.value,
             "severity_score": round(self.severity_score, 6),
+            "confidence": self.confidence.value,
             "computed_value": (
                 None if self.computed_value is None else round(self.computed_value, 6)
             ),

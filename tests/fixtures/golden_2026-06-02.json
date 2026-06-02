@@ -1,0 +1,1360 @@
+[
+  {
+    "as_of": "2026-06-02",
+    "cik": "0000320193",
+    "flagged_rules": [],
+    "max_severity": "NONE",
+    "num_flags": 0,
+    "num_insufficient": 0,
+    "results": [
+      {
+        "citations": [
+          {
+            "accession": null,
+            "concept": "NetIncomeLoss",
+            "filed": "2026-05-01",
+            "form": "10-Q",
+            "period_end": "2026-03-28",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "EarningsPerShareBasic",
+            "filed": "2026-05-01",
+            "form": "10-Q",
+            "period_end": "2026-03-28",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "NetIncomeLoss",
+            "filed": "2026-05-01",
+            "form": "10-Q",
+            "period_end": "2025-03-29",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "EarningsPerShareBasic",
+            "filed": "2026-05-01",
+            "form": "10-Q",
+            "period_end": "2025-03-29",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          }
+        ],
+        "computed_value": -0.024944,
+        "confidence": "low",
+        "raw_values": {
+          "latest_period": "2026-03-28",
+          "prior_period": "2025-03-29",
+          "shares_latest": 14643564356.44,
+          "shares_method": "derived: NetIncome / EPSBasic (split-adjusted)",
+          "shares_prior": 15018181818.18,
+          "yoy_growth": -0.024944
+        },
+        "reason": "R1_DILUTION_WITHIN_LIMIT",
+        "rule_code": "R1_DILUTION",
+        "severity": "NONE",
+        "severity_score": 0.0,
+        "status": "PASS",
+        "threshold": {
+          "yoy_growth_threshold": 0.25,
+          "yoy_window_days": [
+            300,
+            430
+          ]
+        }
+      },
+      {
+        "citations": [
+          {
+            "accession": null,
+            "concept": "CashAndCashEquivalents",
+            "filed": "2026-05-01",
+            "form": "10-Q",
+            "period_end": "2026-03-28",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "OperatingCashFlow",
+            "filed": "2026-01-30",
+            "form": "10-Q",
+            "period_end": "2025-12-27",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          }
+        ],
+        "computed_value": null,
+        "confidence": "high",
+        "raw_values": {
+          "burn_method": "latest_quarter",
+          "burn_periods": [
+            "2025-12-27"
+          ],
+          "cash": 45570000000.0,
+          "cash_period_end": "2026-03-28",
+          "note": "operating_cash_flow_non_negative",
+          "quarterly_operating_burn": 53920000000.0
+        },
+        "reason": "R2_CASH_GENERATIVE",
+        "rule_code": "R2_CASH_RUNWAY",
+        "severity": "NONE",
+        "severity_score": 0.0,
+        "status": "PASS",
+        "threshold": {
+          "burn_window_quarters": 4,
+          "min_runway_quarters": 4.0
+        }
+      },
+      {
+        "citations": [
+          {
+            "accession": null,
+            "concept": "StockholdersEquity",
+            "filed": "2026-05-01",
+            "form": "10-Q",
+            "period_end": "2026-03-28",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          }
+        ],
+        "computed_value": 106490000000.0,
+        "confidence": "high",
+        "raw_values": {
+          "period_end": "2026-03-28",
+          "stockholders_equity": 106490000000.0
+        },
+        "reason": "R3_EQUITY_POSITIVE",
+        "rule_code": "R3_NEGATIVE_EQUITY",
+        "severity": "NONE",
+        "severity_score": 0.0,
+        "status": "PASS",
+        "threshold": {
+          "equity_floor": 0.0
+        }
+      },
+      {
+        "citations": [
+          {
+            "accession": null,
+            "concept": "AssetsCurrent",
+            "filed": "2026-05-01",
+            "form": "10-Q",
+            "period_end": "2026-03-28",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "LiabilitiesCurrent",
+            "filed": "2026-05-01",
+            "form": "10-Q",
+            "period_end": "2026-03-28",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          }
+        ],
+        "computed_value": 1.070336,
+        "confidence": "high",
+        "raw_values": {
+          "current_assets": 144110000000.0,
+          "current_liabilities": 134639999999.99998,
+          "current_ratio": 1.070336,
+          "period_end": "2026-03-28"
+        },
+        "reason": "R4_LIQUIDITY_OK",
+        "rule_code": "R4_LIQUIDITY",
+        "severity": "NONE",
+        "severity_score": 0.0,
+        "status": "PASS",
+        "threshold": {
+          "min_current_ratio": 1.0
+        }
+      },
+      {
+        "citations": [
+          {
+            "accession": null,
+            "concept": "NetIncomeLoss",
+            "filed": "2025-10-31",
+            "form": "10-K",
+            "period_end": "2025-09-27",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "OperatingCashFlow",
+            "filed": "2025-10-31",
+            "form": "10-K",
+            "period_end": "2025-09-27",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "Assets",
+            "filed": "2026-05-01",
+            "form": "10-Q",
+            "period_end": "2025-09-27",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          }
+        ],
+        "computed_value": 0.001475,
+        "confidence": "high",
+        "raw_values": {
+          "accruals_ratio": 0.001475,
+          "net_income": 112010000000.0,
+          "operating_cash_flow": 111480000000.0,
+          "period_end": "2025-09-27",
+          "total_assets": 359240000000.0
+        },
+        "reason": "R5_EARNINGS_QUALITY_OK",
+        "rule_code": "R5_EARNINGS_QUALITY",
+        "severity": "NONE",
+        "severity_score": 0.0,
+        "status": "PASS",
+        "threshold": {
+          "max_accruals_ratio": 0.1
+        }
+      }
+    ],
+    "ticker": "AAPL",
+    "total_score": 0,
+    "weighted_total": 0
+  },
+  {
+    "as_of": "2026-06-02",
+    "cik": "0001411579",
+    "flagged_rules": [
+      "R2_CASH_RUNWAY",
+      "R3_NEGATIVE_EQUITY",
+      "R4_LIQUIDITY"
+    ],
+    "max_severity": "CRITICAL",
+    "num_flags": 3,
+    "num_insufficient": 1,
+    "results": [
+      {
+        "citations": [],
+        "computed_value": null,
+        "confidence": "high",
+        "raw_values": {
+          "missing": [
+            "no_period ~1yr before latest"
+          ]
+        },
+        "reason": "R1_DILUTION_INSUFFICIENT_DATA",
+        "rule_code": "R1_DILUTION",
+        "severity": "NONE",
+        "severity_score": 0.0,
+        "status": "INSUFFICIENT_DATA",
+        "threshold": {
+          "yoy_growth_threshold": 0.25,
+          "yoy_window_days": [
+            300,
+            430
+          ]
+        }
+      },
+      {
+        "citations": [
+          {
+            "accession": null,
+            "concept": "CashAndCashEquivalents",
+            "filed": "2026-05-05",
+            "form": "10-Q",
+            "period_end": "2026-03-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "OperatingCashFlow",
+            "filed": "2026-05-05",
+            "form": "10-Q",
+            "period_end": "2026-03-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          }
+        ],
+        "computed_value": 2.639689,
+        "confidence": "high",
+        "raw_values": {
+          "burn_method": "latest_quarter",
+          "burn_periods": [
+            "2026-03-31"
+          ],
+          "cash": 339200000.0,
+          "cash_period_end": "2026-03-31",
+          "quarterly_operating_burn": -128500000.0,
+          "runway_quarters": 2.6397
+        },
+        "reason": "R2_CASH_RUNWAY_SHORT",
+        "rule_code": "R2_CASH_RUNWAY",
+        "severity": "MEDIUM",
+        "severity_score": 0.340078,
+        "status": "FLAG",
+        "threshold": {
+          "burn_window_quarters": 4,
+          "min_runway_quarters": 4.0
+        }
+      },
+      {
+        "citations": [
+          {
+            "accession": null,
+            "concept": "StockholdersEquity",
+            "filed": "2026-05-05",
+            "form": "10-Q",
+            "period_end": "2026-03-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "Assets",
+            "filed": "2026-05-05",
+            "form": "10-Q",
+            "period_end": "2026-03-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          }
+        ],
+        "computed_value": -1930000000.0,
+        "confidence": "high",
+        "raw_values": {
+          "period_end": "2026-03-31",
+          "stockholders_equity": -1930000000.0,
+          "total_assets": 7680000000.0
+        },
+        "reason": "R3_NEGATIVE_EQUITY",
+        "rule_code": "R3_NEGATIVE_EQUITY",
+        "severity": "HIGH",
+        "severity_score": 0.251302,
+        "status": "FLAG",
+        "threshold": {
+          "equity_floor": 0.0
+        }
+      },
+      {
+        "citations": [
+          {
+            "accession": null,
+            "concept": "AssetsCurrent",
+            "filed": "2026-05-05",
+            "form": "10-Q",
+            "period_end": "2026-03-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "LiabilitiesCurrent",
+            "filed": "2026-05-05",
+            "form": "10-Q",
+            "period_end": "2026-03-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          }
+        ],
+        "computed_value": 0.348922,
+        "confidence": "high",
+        "raw_values": {
+          "current_assets": 582700000.0,
+          "current_liabilities": 1670000000.0,
+          "current_ratio": 0.348922,
+          "period_end": "2026-03-31"
+        },
+        "reason": "R4_LIQUIDITY_STRESS",
+        "rule_code": "R4_LIQUIDITY",
+        "severity": "CRITICAL",
+        "severity_score": 0.651078,
+        "status": "FLAG",
+        "threshold": {
+          "min_current_ratio": 1.0
+        }
+      },
+      {
+        "citations": [
+          {
+            "accession": null,
+            "concept": "NetIncomeLoss",
+            "filed": "2026-02-23",
+            "form": "10-K",
+            "period_end": "2025-12-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "OperatingCashFlow",
+            "filed": "2026-02-23",
+            "form": "10-K",
+            "period_end": "2025-12-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "Assets",
+            "filed": "2026-05-05",
+            "form": "10-Q",
+            "period_end": "2025-12-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          }
+        ],
+        "computed_value": -0.063915,
+        "confidence": "high",
+        "raw_values": {
+          "accruals_ratio": -0.063915,
+          "net_income": -632400000.0,
+          "operating_cash_flow": -119800000.0,
+          "period_end": "2025-12-31",
+          "total_assets": 8020000000.0
+        },
+        "reason": "R5_EARNINGS_QUALITY_OK",
+        "rule_code": "R5_EARNINGS_QUALITY",
+        "severity": "NONE",
+        "severity_score": 0.0,
+        "status": "PASS",
+        "threshold": {
+          "max_accruals_ratio": 0.1
+        }
+      }
+    ],
+    "ticker": "AMC",
+    "total_score": 1.242458,
+    "weighted_total": 1.538148
+  },
+  {
+    "as_of": "2026-06-02",
+    "cik": "0001655210",
+    "flagged_rules": [
+      "R1_DILUTION",
+      "R3_NEGATIVE_EQUITY",
+      "R5_EARNINGS_QUALITY"
+    ],
+    "max_severity": "CRITICAL",
+    "num_flags": 3,
+    "num_insufficient": 0,
+    "results": [
+      {
+        "citations": [
+          {
+            "accession": null,
+            "concept": "NetIncomeLoss",
+            "filed": "2026-05-07",
+            "form": "10-Q",
+            "period_end": "2026-03-28",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "EarningsPerShareBasic",
+            "filed": "2026-05-07",
+            "form": "10-Q",
+            "period_end": "2026-03-28",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "NetIncomeLoss",
+            "filed": "2026-05-07",
+            "form": "10-Q/K",
+            "period_end": "2025-03-29",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "EarningsPerShareBasic",
+            "filed": "2026-05-07",
+            "form": "10-Q/K",
+            "period_end": "2025-03-29",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          }
+        ],
+        "computed_value": 5.215966,
+        "confidence": "low",
+        "raw_values": {
+          "latest_period": "2026-03-28",
+          "prior_period": "2025-03-29",
+          "shares_latest": 474666666.67,
+          "shares_method": "derived: NetIncome / EPSBasic (split-adjusted)",
+          "shares_prior": 76362500.0,
+          "yoy_growth": 5.215966
+        },
+        "reason": "R1_EXCESSIVE_DILUTION",
+        "rule_code": "R1_DILUTION",
+        "severity": "MEDIUM",
+        "severity_score": 0.5,
+        "status": "FLAG",
+        "threshold": {
+          "yoy_growth_threshold": 0.25,
+          "yoy_window_days": [
+            300,
+            430
+          ]
+        }
+      },
+      {
+        "citations": [
+          {
+            "accession": null,
+            "concept": "CashAndCashEquivalents",
+            "filed": "2026-05-07",
+            "form": "10-Q",
+            "period_end": "2026-03-28",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "OperatingCashFlow",
+            "filed": "2026-05-07",
+            "form": "10-Q",
+            "period_end": "2026-03-28",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          }
+        ],
+        "computed_value": 37.972167,
+        "confidence": "high",
+        "raw_values": {
+          "burn_method": "latest_quarter",
+          "burn_periods": [
+            "2026-03-28"
+          ],
+          "cash": 191000000.0,
+          "cash_period_end": "2026-03-28",
+          "quarterly_operating_burn": -5030000.0,
+          "runway_quarters": 37.9722
+        },
+        "reason": "R2_RUNWAY_ADEQUATE",
+        "rule_code": "R2_CASH_RUNWAY",
+        "severity": "NONE",
+        "severity_score": 0.0,
+        "status": "PASS",
+        "threshold": {
+          "burn_window_quarters": 4,
+          "min_runway_quarters": 4.0
+        }
+      },
+      {
+        "citations": [
+          {
+            "accession": null,
+            "concept": "StockholdersEquity",
+            "filed": "2026-05-07",
+            "form": "10-Q",
+            "period_end": "2026-03-28",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "Assets",
+            "filed": "2026-05-07",
+            "form": "10-Q",
+            "period_end": "2026-03-28",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          }
+        ],
+        "computed_value": -21080000.0,
+        "confidence": "high",
+        "raw_values": {
+          "period_end": "2026-03-28",
+          "stockholders_equity": -21080000.0,
+          "total_assets": 579460000.0
+        },
+        "reason": "R3_NEGATIVE_EQUITY",
+        "rule_code": "R3_NEGATIVE_EQUITY",
+        "severity": "LOW",
+        "severity_score": 0.036379,
+        "status": "FLAG",
+        "threshold": {
+          "equity_floor": 0.0
+        }
+      },
+      {
+        "citations": [
+          {
+            "accession": null,
+            "concept": "AssetsCurrent",
+            "filed": "2026-05-07",
+            "form": "10-Q",
+            "period_end": "2026-03-28",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "LiabilitiesCurrent",
+            "filed": "2026-05-07",
+            "form": "10-Q",
+            "period_end": "2026-03-28",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          }
+        ],
+        "computed_value": 2.852779,
+        "confidence": "high",
+        "raw_values": {
+          "current_assets": 311010000.0,
+          "current_liabilities": 109020000.0,
+          "current_ratio": 2.852779,
+          "period_end": "2026-03-28"
+        },
+        "reason": "R4_LIQUIDITY_OK",
+        "rule_code": "R4_LIQUIDITY",
+        "severity": "NONE",
+        "severity_score": 0.0,
+        "status": "PASS",
+        "threshold": {
+          "min_current_ratio": 1.0
+        }
+      },
+      {
+        "citations": [
+          {
+            "accession": null,
+            "concept": "NetIncomeLoss",
+            "filed": "2026-04-09",
+            "form": "10-K",
+            "period_end": "2025-12-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "OperatingCashFlow",
+            "filed": "2026-04-09",
+            "form": "10-K",
+            "period_end": "2025-12-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "Assets",
+            "filed": "2026-05-07",
+            "form": "10-Q",
+            "period_end": "2025-12-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          }
+        ],
+        "computed_value": 0.592029,
+        "confidence": "high",
+        "raw_values": {
+          "accruals_ratio": 0.592029,
+          "net_income": 219020000.0,
+          "operating_cash_flow": -144930000.0,
+          "period_end": "2025-12-31",
+          "total_assets": 614750000.0
+        },
+        "reason": "R5_HIGH_ACCRUALS",
+        "rule_code": "R5_EARNINGS_QUALITY",
+        "severity": "CRITICAL",
+        "severity_score": 1.0,
+        "status": "FLAG",
+        "threshold": {
+          "max_accruals_ratio": 0.1
+        }
+      }
+    ],
+    "ticker": "BYND",
+    "total_score": 1.536379,
+    "weighted_total": 1.554568
+  },
+  {
+    "as_of": "2026-06-02",
+    "cik": "0001707919",
+    "flagged_rules": [
+      "R2_CASH_RUNWAY"
+    ],
+    "max_severity": "HIGH",
+    "num_flags": 1,
+    "num_insufficient": 1,
+    "results": [
+      {
+        "citations": [],
+        "computed_value": null,
+        "confidence": "high",
+        "raw_values": {
+          "missing": [
+            "noisy_derived_share_series (jump >3.0x near 2025-09-30)"
+          ]
+        },
+        "reason": "R1_DILUTION_INSUFFICIENT_DATA",
+        "rule_code": "R1_DILUTION",
+        "severity": "NONE",
+        "severity_score": 0.0,
+        "status": "INSUFFICIENT_DATA",
+        "threshold": {
+          "yoy_growth_threshold": 0.25,
+          "yoy_window_days": [
+            300,
+            430
+          ]
+        }
+      },
+      {
+        "citations": [
+          {
+            "accession": null,
+            "concept": "CashAndCashEquivalents",
+            "filed": "2026-05-14",
+            "form": "10-Q",
+            "period_end": "2026-03-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "OperatingCashFlow",
+            "filed": "2026-05-14",
+            "form": "10-Q",
+            "period_end": "2026-03-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          }
+        ],
+        "computed_value": 1.284698,
+        "confidence": "high",
+        "raw_values": {
+          "burn_method": "latest_quarter",
+          "burn_periods": [
+            "2026-03-31"
+          ],
+          "cash": 3610000.0,
+          "cash_period_end": "2026-03-31",
+          "quarterly_operating_burn": -2810000.0,
+          "runway_quarters": 1.2847
+        },
+        "reason": "R2_CASH_RUNWAY_SHORT",
+        "rule_code": "R2_CASH_RUNWAY",
+        "severity": "HIGH",
+        "severity_score": 0.678826,
+        "status": "FLAG",
+        "threshold": {
+          "burn_window_quarters": 4,
+          "min_runway_quarters": 4.0
+        }
+      },
+      {
+        "citations": [
+          {
+            "accession": null,
+            "concept": "StockholdersEquity",
+            "filed": "2026-05-14",
+            "form": "10-Q",
+            "period_end": "2026-03-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          }
+        ],
+        "computed_value": 37550000.0,
+        "confidence": "high",
+        "raw_values": {
+          "period_end": "2026-03-31",
+          "stockholders_equity": 37550000.0
+        },
+        "reason": "R3_EQUITY_POSITIVE",
+        "rule_code": "R3_NEGATIVE_EQUITY",
+        "severity": "NONE",
+        "severity_score": 0.0,
+        "status": "PASS",
+        "threshold": {
+          "equity_floor": 0.0
+        }
+      },
+      {
+        "citations": [
+          {
+            "accession": null,
+            "concept": "AssetsCurrent",
+            "filed": "2026-05-14",
+            "form": "10-Q",
+            "period_end": "2026-03-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "LiabilitiesCurrent",
+            "filed": "2026-05-14",
+            "form": "10-Q",
+            "period_end": "2026-03-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          }
+        ],
+        "computed_value": 1.691121,
+        "confidence": "high",
+        "raw_values": {
+          "current_assets": 44950000.0,
+          "current_liabilities": 26580000.0,
+          "current_ratio": 1.691121,
+          "period_end": "2026-03-31"
+        },
+        "reason": "R4_LIQUIDITY_OK",
+        "rule_code": "R4_LIQUIDITY",
+        "severity": "NONE",
+        "severity_score": 0.0,
+        "status": "PASS",
+        "threshold": {
+          "min_current_ratio": 1.0
+        }
+      },
+      {
+        "citations": [
+          {
+            "accession": null,
+            "concept": "NetIncomeLoss",
+            "filed": "2026-04-15",
+            "form": "10-K",
+            "period_end": "2025-12-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "OperatingCashFlow",
+            "filed": "2026-04-15",
+            "form": "10-K",
+            "period_end": "2025-12-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "Assets",
+            "filed": "2026-05-14",
+            "form": "10-Q",
+            "period_end": "2025-12-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          }
+        ],
+        "computed_value": -0.810963,
+        "confidence": "high",
+        "raw_values": {
+          "accruals_ratio": -0.810963,
+          "net_income": -72980000.0,
+          "operating_cash_flow": -12620000.0,
+          "period_end": "2025-12-31",
+          "total_assets": 74430000.0
+        },
+        "reason": "R5_EARNINGS_QUALITY_OK",
+        "rule_code": "R5_EARNINGS_QUALITY",
+        "severity": "NONE",
+        "severity_score": 0.0,
+        "status": "PASS",
+        "threshold": {
+          "max_accruals_ratio": 0.1
+        }
+      }
+    ],
+    "ticker": "CENN",
+    "total_score": 0.678826,
+    "weighted_total": 1.018238
+  },
+  {
+    "as_of": "2026-06-02",
+    "cik": "0000789019",
+    "flagged_rules": [],
+    "max_severity": "NONE",
+    "num_flags": 0,
+    "num_insufficient": 0,
+    "results": [
+      {
+        "citations": [
+          {
+            "accession": null,
+            "concept": "NetIncomeLoss",
+            "filed": "2026-04-29",
+            "form": "10-Q",
+            "period_end": "2026-03-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "EarningsPerShareBasic",
+            "filed": "2026-04-29",
+            "form": "10-Q",
+            "period_end": "2026-03-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "NetIncomeLoss",
+            "filed": "2026-04-29",
+            "form": "10-Q",
+            "period_end": "2025-03-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "EarningsPerShareBasic",
+            "filed": "2026-04-29",
+            "form": "10-Q",
+            "period_end": "2025-03-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          }
+        ],
+        "computed_value": -0.002108,
+        "confidence": "low",
+        "raw_values": {
+          "latest_period": "2026-03-31",
+          "prior_period": "2025-03-31",
+          "shares_latest": 7425233644.86,
+          "shares_method": "derived: NetIncome / EPSBasic (split-adjusted)",
+          "shares_prior": 7440922190.2,
+          "yoy_growth": -0.002108
+        },
+        "reason": "R1_DILUTION_WITHIN_LIMIT",
+        "rule_code": "R1_DILUTION",
+        "severity": "NONE",
+        "severity_score": 0.0,
+        "status": "PASS",
+        "threshold": {
+          "yoy_growth_threshold": 0.25,
+          "yoy_window_days": [
+            300,
+            430
+          ]
+        }
+      },
+      {
+        "citations": [
+          {
+            "accession": null,
+            "concept": "CashAndCashEquivalents",
+            "filed": "2026-04-29",
+            "form": "10-Q",
+            "period_end": "2026-03-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "OperatingCashFlow",
+            "filed": "2026-04-29",
+            "form": "10-Q",
+            "period_end": "2026-03-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "OperatingCashFlow",
+            "filed": "2026-01-28",
+            "form": "10-Q",
+            "period_end": "2025-12-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "OperatingCashFlow",
+            "filed": "2025-10-29",
+            "form": "10-Q",
+            "period_end": "2025-09-30",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          }
+        ],
+        "computed_value": null,
+        "confidence": "high",
+        "raw_values": {
+          "burn_method": "avg_trailing_quarters",
+          "burn_periods": [
+            "2026-03-31",
+            "2025-12-31",
+            "2025-09-30"
+          ],
+          "cash": 32100000000.0,
+          "cash_period_end": "2026-03-31",
+          "note": "operating_cash_flow_non_negative",
+          "quarterly_operating_burn": 42500000000.0
+        },
+        "reason": "R2_CASH_GENERATIVE",
+        "rule_code": "R2_CASH_RUNWAY",
+        "severity": "NONE",
+        "severity_score": 0.0,
+        "status": "PASS",
+        "threshold": {
+          "burn_window_quarters": 4,
+          "min_runway_quarters": 4.0
+        }
+      },
+      {
+        "citations": [
+          {
+            "accession": null,
+            "concept": "StockholdersEquity",
+            "filed": "2026-04-29",
+            "form": "10-Q",
+            "period_end": "2026-03-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          }
+        ],
+        "computed_value": 414370000000.0,
+        "confidence": "high",
+        "raw_values": {
+          "period_end": "2026-03-31",
+          "stockholders_equity": 414370000000.0
+        },
+        "reason": "R3_EQUITY_POSITIVE",
+        "rule_code": "R3_NEGATIVE_EQUITY",
+        "severity": "NONE",
+        "severity_score": 0.0,
+        "status": "PASS",
+        "threshold": {
+          "equity_floor": 0.0
+        }
+      },
+      {
+        "citations": [
+          {
+            "accession": null,
+            "concept": "AssetsCurrent",
+            "filed": "2026-04-29",
+            "form": "10-Q",
+            "period_end": "2026-03-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "LiabilitiesCurrent",
+            "filed": "2026-04-29",
+            "form": "10-Q",
+            "period_end": "2026-03-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          }
+        ],
+        "computed_value": 1.282965,
+        "confidence": "high",
+        "raw_values": {
+          "current_assets": 175330000000.0,
+          "current_liabilities": 136660000000.0,
+          "current_ratio": 1.282965,
+          "period_end": "2026-03-31"
+        },
+        "reason": "R4_LIQUIDITY_OK",
+        "rule_code": "R4_LIQUIDITY",
+        "severity": "NONE",
+        "severity_score": 0.0,
+        "status": "PASS",
+        "threshold": {
+          "min_current_ratio": 1.0
+        }
+      },
+      {
+        "citations": [
+          {
+            "accession": null,
+            "concept": "NetIncomeLoss",
+            "filed": "2025-07-30",
+            "form": "10-K",
+            "period_end": "2025-06-30",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "OperatingCashFlow",
+            "filed": "2025-07-30",
+            "form": "10-K",
+            "period_end": "2025-06-30",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "Assets",
+            "filed": "2026-04-29",
+            "form": "10-Q",
+            "period_end": "2025-06-30",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          }
+        ],
+        "computed_value": -0.05546,
+        "confidence": "high",
+        "raw_values": {
+          "accruals_ratio": -0.05546,
+          "net_income": 101830000000.0,
+          "operating_cash_flow": 136160000000.0,
+          "period_end": "2025-06-30",
+          "total_assets": 619000000000.0
+        },
+        "reason": "R5_EARNINGS_QUALITY_OK",
+        "rule_code": "R5_EARNINGS_QUALITY",
+        "severity": "NONE",
+        "severity_score": 0.0,
+        "status": "PASS",
+        "threshold": {
+          "max_accruals_ratio": 0.1
+        }
+      }
+    ],
+    "ticker": "MSFT",
+    "total_score": 0,
+    "weighted_total": 0
+  },
+  {
+    "as_of": "2026-06-02",
+    "cik": "0001425287",
+    "flagged_rules": [
+      "R2_CASH_RUNWAY"
+    ],
+    "max_severity": "CRITICAL",
+    "num_flags": 1,
+    "num_insufficient": 0,
+    "results": [
+      {
+        "citations": [
+          {
+            "accession": null,
+            "concept": "NetIncomeLoss",
+            "filed": "2026-05-14",
+            "form": "10-Q",
+            "period_end": "2026-03-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "EarningsPerShareBasic",
+            "filed": "2026-05-14",
+            "form": "10-Q",
+            "period_end": "2026-03-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "NetIncomeLoss",
+            "filed": "2026-05-14",
+            "form": "10-Q/K",
+            "period_end": "2025-03-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "EarningsPerShareBasic",
+            "filed": "2026-05-14",
+            "form": "10-Q/K",
+            "period_end": "2025-03-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          }
+        ],
+        "computed_value": 0.07317,
+        "confidence": "low",
+        "raw_values": {
+          "latest_period": "2026-03-31",
+          "prior_period": "2025-03-31",
+          "shares_latest": 9989949.75,
+          "shares_method": "derived: NetIncome / EPSBasic (split-adjusted)",
+          "shares_prior": 9308823.53,
+          "yoy_growth": 0.07317
+        },
+        "reason": "R1_DILUTION_WITHIN_LIMIT",
+        "rule_code": "R1_DILUTION",
+        "severity": "NONE",
+        "severity_score": 0.0,
+        "status": "PASS",
+        "threshold": {
+          "yoy_growth_threshold": 0.25,
+          "yoy_window_days": [
+            300,
+            430
+          ]
+        }
+      },
+      {
+        "citations": [
+          {
+            "accession": null,
+            "concept": "CashAndCashEquivalents",
+            "filed": "2026-05-14",
+            "form": "10-Q",
+            "period_end": "2026-03-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "OperatingCashFlow",
+            "filed": "2026-05-14",
+            "form": "10-Q",
+            "period_end": "2026-03-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          }
+        ],
+        "computed_value": 0.03632,
+        "confidence": "high",
+        "raw_values": {
+          "burn_method": "latest_quarter",
+          "burn_periods": [
+            "2026-03-31"
+          ],
+          "cash": 600000.0,
+          "cash_period_end": "2026-03-31",
+          "quarterly_operating_burn": -16520000.0,
+          "runway_quarters": 0.0363
+        },
+        "reason": "R2_CASH_RUNWAY_SHORT",
+        "rule_code": "R2_CASH_RUNWAY",
+        "severity": "CRITICAL",
+        "severity_score": 0.99092,
+        "status": "FLAG",
+        "threshold": {
+          "burn_window_quarters": 4,
+          "min_runway_quarters": 4.0
+        }
+      },
+      {
+        "citations": [
+          {
+            "accession": null,
+            "concept": "StockholdersEquity",
+            "filed": "2026-05-14",
+            "form": "10-Q",
+            "period_end": "2026-03-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          }
+        ],
+        "computed_value": 26190000.0,
+        "confidence": "high",
+        "raw_values": {
+          "period_end": "2026-03-31",
+          "stockholders_equity": 26190000.0
+        },
+        "reason": "R3_EQUITY_POSITIVE",
+        "rule_code": "R3_NEGATIVE_EQUITY",
+        "severity": "NONE",
+        "severity_score": 0.0,
+        "status": "PASS",
+        "threshold": {
+          "equity_floor": 0.0
+        }
+      },
+      {
+        "citations": [
+          {
+            "accession": null,
+            "concept": "AssetsCurrent",
+            "filed": "2026-05-14",
+            "form": "10-Q",
+            "period_end": "2026-03-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "LiabilitiesCurrent",
+            "filed": "2026-05-14",
+            "form": "10-Q",
+            "period_end": "2026-03-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          }
+        ],
+        "computed_value": 1.227937,
+        "confidence": "high",
+        "raw_values": {
+          "current_assets": 47030000.0,
+          "current_liabilities": 38300000.0,
+          "current_ratio": 1.227937,
+          "period_end": "2026-03-31"
+        },
+        "reason": "R4_LIQUIDITY_OK",
+        "rule_code": "R4_LIQUIDITY",
+        "severity": "NONE",
+        "severity_score": 0.0,
+        "status": "PASS",
+        "threshold": {
+          "min_current_ratio": 1.0
+        }
+      },
+      {
+        "citations": [
+          {
+            "accession": null,
+            "concept": "NetIncomeLoss",
+            "filed": "2026-03-31",
+            "form": "10-K",
+            "period_end": "2025-12-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "OperatingCashFlow",
+            "filed": "2026-03-31",
+            "form": "10-K",
+            "period_end": "2025-12-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          },
+          {
+            "accession": null,
+            "concept": "Assets",
+            "filed": "2026-05-14",
+            "form": "10-Q",
+            "period_end": "2025-12-31",
+            "source": "SEC EDGAR XBRL (via MCP)",
+            "unit": "USD"
+          }
+        ],
+        "computed_value": -0.24209,
+        "confidence": "high",
+        "raw_values": {
+          "accruals_ratio": -0.24209,
+          "net_income": -64090000.0,
+          "operating_cash_flow": -35550000.0,
+          "period_end": "2025-12-31",
+          "total_assets": 117890000.0
+        },
+        "reason": "R5_EARNINGS_QUALITY_OK",
+        "rule_code": "R5_EARNINGS_QUALITY",
+        "severity": "NONE",
+        "severity_score": 0.0,
+        "status": "PASS",
+        "threshold": {
+          "max_accruals_ratio": 0.1
+        }
+      }
+    ],
+    "ticker": "WKHS",
+    "total_score": 0.99092,
+    "weighted_total": 1.48638
+  }
+]
