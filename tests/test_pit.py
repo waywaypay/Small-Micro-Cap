@@ -41,8 +41,9 @@ def test_no_fact_filed_after_asof_is_ever_returned():
 
 
 def test_resolver_is_deterministic_on_ties():
-    # Two facts, same (concept, period_end, filed) but different value: the
-    # resolver must pick the same one every time (larger value, by rule).
+    # Two facts, same (concept, period_end, filed) and NO accession (MCP path):
+    # the resolver falls back to value as a deterministic last resort, so it
+    # picks the same one every time.
     f1 = Fact(STOCKHOLDERS_EQUITY, dt.date(2024, 1, 1), dt.date(2024, 2, 1),
               10.0, "10-K", "")
     f2 = Fact(STOCKHOLDERS_EQUITY, dt.date(2024, 1, 1), dt.date(2024, 2, 1),
@@ -50,3 +51,19 @@ def test_resolver_is_deterministic_on_ties():
     cf = CompanyFacts("X", None, [f1, f2])
     v = cf.as_of(dt.date(2025, 1, 1))
     assert v.at(STOCKHOLDERS_EQUITY, dt.date(2024, 1, 1)).value == 20.0
+
+
+def test_same_day_tie_breaks_on_accession_not_value():
+    # Same (concept, period_end, filed) but different accessions: the later
+    # submission (higher accession) wins even though its value is SMALLER — a
+    # distress screen must not prefer the rosier number when two same-day
+    # vintages disagree.
+    earlier = Fact(STOCKHOLDERS_EQUITY, dt.date(2024, 1, 1), dt.date(2024, 2, 1),
+                   20.0, "10-K", "", accession="0000000000-24-000001")
+    later = Fact(STOCKHOLDERS_EQUITY, dt.date(2024, 1, 1), dt.date(2024, 2, 1),
+                 -5.0, "10-K/A", "", accession="0000000000-24-000002")
+    cf = CompanyFacts("X", None, [earlier, later])
+    v = cf.as_of(dt.date(2025, 1, 1))
+    chosen = v.at(STOCKHOLDERS_EQUITY, dt.date(2024, 1, 1))
+    assert chosen.value == -5.0
+    assert chosen.fact.accession == "0000000000-24-000002"

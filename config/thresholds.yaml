@@ -29,6 +29,9 @@ rules:
     # don't flag heavy share growth in a cash-generative business (usually a
     # stock acquisition or stock-based comp, not dilution-to-fund-losses).
     require_negative_ocf: true
+    # judge "cash-generative" on the latest N annual operating-cash-flow figures
+    # (a long-past negative year shouldn't keep a now-healthy firm from clearing).
+    cash_generative_annual_lookback: 2
     severity_cap: 1.00          # +100% YoY -> score 1.0
     severity_bands: [0.25, 0.50, 1.00, 2.00]
 
@@ -49,6 +52,7 @@ rules:
     # negative equity is a financing choice, not distress). Set false to flag
     # any negative equity regardless of cash generation.
     require_negative_ocf: true
+    cash_generative_annual_lookback: 2
     severity_cap: 1.0           # equity == -100% of |assets-scale| -> 1.0
     # bands on (-equity / total_assets); deeper negative = worse.
     severity_bands: [0.0, 0.10, 0.25, 0.50]
@@ -60,6 +64,7 @@ rules:
     # don't flag a sub-1 current ratio in a cash-generative business (normal for
     # asset-light / float-funded firms). Set false to flag regardless.
     require_negative_ocf: true
+    cash_generative_annual_lookback: 2
     severity_cap: 1.0           # ratio 0 -> score 1.0
     severity_bands: [0.0, 0.15, 0.35, 0.60]  # bands on (threshold - ratio)
 

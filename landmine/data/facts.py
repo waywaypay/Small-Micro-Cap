@@ -85,6 +85,16 @@ class AsOfView:
         return self._resolved.get((concept, period_end))
 
 
+def _vintage_key(f: Fact) -> tuple[dt.date, str, float]:
+    """Ordering key for choosing among vintages of the same (concept, period_end).
+
+    Later ``filed`` wins; same-day ties break on ``accession`` (the later
+    submission sorts higher), with ``value`` only as a final, deterministic
+    tie-breaker for the MCP path, which exposes no accession.
+    """
+    return (f.filed, f.accession or "", f.value)
+
+
 class CompanyFacts:
     """All known Facts for one company, across all vintages."""
 
@@ -97,8 +107,12 @@ class CompanyFacts:
         """Collapse to the point-in-time view knowable on ``as_of``.
 
         For each (concept, period_end), among facts with ``filed <= as_of``,
-        keep the one with the most recent ``filed`` (ties broken by larger
-        value-bearing accession/order for determinism).
+        keep the latest vintage: most recent ``filed`` wins; same-day ties break
+        on ``accession`` (the later submission), and only when accession is
+        absent — the MCP path carries none — fall back to the larger value as a
+        deterministic last resort. Choosing the later filing rather than the
+        larger number avoids biasing a distress screen toward the rosier reading
+        when two same-day vintages disagree.
         """
         resolved: dict[tuple[str, dt.date], ResolvedFact] = {}
         chosen: dict[tuple[str, dt.date], Fact] = {}
@@ -107,7 +121,7 @@ class CompanyFacts:
                 continue  # look-ahead guard — never visible as-of this date
             key = (f.concept, f.period_end)
             cur = chosen.get(key)
-            if cur is None or (f.filed, f.value) > (cur.filed, cur.value):
+            if cur is None or _vintage_key(f) > _vintage_key(cur):
                 chosen[key] = f
         for key, f in chosen.items():
             resolved[key] = ResolvedFact(f.concept, f.period_end, f.value, f)

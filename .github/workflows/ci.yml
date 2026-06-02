@@ -1,0 +1,35 @@
+name: CI
+
+# The screen's headline guarantee is "deterministic & reproducible". This
+# workflow enforces it on every push/PR: the test suite includes the
+# determinism, point-in-time and golden-output checks, so a change that breaks
+# byte-identical output fails CI.
+#
+# (A ruff/mypy lint job can be added once the codebase has had a formatting pass;
+# kept out here to avoid a large cosmetic diff.)
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: tests (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m pip install --upgrade pip
+      - run: pip install -e ".[dev]"
+      - run: pytest -q

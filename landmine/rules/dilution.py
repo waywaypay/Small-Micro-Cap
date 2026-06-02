@@ -114,7 +114,8 @@ class DilutionRule:
         # acquisition or stock-based comp, not dilution-to-fund-losses. Only flag
         # when the company is also burning operating cash. Missing OCF != cleared.
         if require_negative_ocf:
-            generative, ocf = is_cash_generative(view)
+            generative, ocf = is_cash_generative(
+                view, int(cfg.get("cash_generative_annual_lookback", 2)))
             if generative:
                 raw["operating_cash_flow"] = ocf.value
                 raw["note"] = "dilution_but_cash_generative"
