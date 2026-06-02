@@ -150,6 +150,18 @@ def test_every_result_has_threshold_and_reason():
                 assert r.citations
 
 
+def test_tier1_blind_spot_qualitative_distress_passes():
+    # CLIFFCO has clean trailing numerics but (by construction) a going-concern
+    # opinion and a near-term debt-maturity cliff. Tier 1 is a NUMERIC screen:
+    # all five rules pass cleanly (not via missing data), so the company slips
+    # through. This is the documented blind spot that Tier 2 (event detection)
+    # and Tier 3 (language checks) are designed to cover.
+    card = _card("_CLIFFCO", cik="9999990")
+    assert card.num_flags == 0
+    assert card.num_insufficient == 0          # genuinely evaluated, not unknown
+    assert all(r.status is Status.PASS for r in card.results)
+
+
 def test_missing_data_is_insufficient_not_pass():
     # As-of a date before WKHS's modern filings, liquidity inputs are absent.
     r = _result(_card("WKHS", as_of=dt.date(2025, 6, 1)), "R4_LIQUIDITY")

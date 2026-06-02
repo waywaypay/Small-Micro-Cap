@@ -149,6 +149,18 @@ behaviour*, not real-world skill — meaningful threshold calibration needs a fe
 hundred labeled names with pre-event as-of dates. Expand `config/labels.yaml`
 and re-run.
 
+### Known blind spot (why Tier 2/3 exist)
+
+Tier 1 is a **numeric** screen. A company whose distress is *qualitative or
+forward-looking* — a going-concern opinion, a covenant breach, a large debt
+maturity due within 12 months — can show clean trailing financials and pass all
+five rules. The synthetic `_CLIFFCO` fixture and
+`test_tier1_blind_spot_qualitative_distress_passes` make this explicit: every
+rule passes *cleanly* (not via missing data), so the name slips through. Closing
+this gap is precisely the job of Tier 2 (event detection: 8-K items, debt
+maturities, offerings) and Tier 3 (filing-language checks) — out of scope here,
+with seams left in place.
+
 ## Architecture
 
 ```

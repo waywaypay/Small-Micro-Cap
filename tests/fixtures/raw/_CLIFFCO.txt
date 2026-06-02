@@ -1,0 +1,69 @@
+================================================================================
+Balance Sheet — CLIFFCO
+Data source: SEC EDGAR XBRL (machine-tagged financial data)
+================================================================================
+
+# SYNTHETIC fixture (note the leading underscore: not part of the real labeled
+# universe). CLIFFCO illustrates the Tier-1 BLIND SPOT: a company whose distress
+# is qualitative/forward-looking -- a going-concern opinion and a large debt
+# maturity due within 12 months -- but whose TRAILING numbers look clean. All
+# five numeric Tier-1 rules pass; the distress lives in filing language and the
+# debt-maturity schedule, which Tier 2 (event detection) and Tier 3 (language
+# checks) cover. Kept out of config/labels.yaml so calibration stays honest.
+
+Total Assets
+----------------------------------------
+  2026-03-31 [10-Q]: $600.00M (Filed: 2026-05-10)
+  2025-12-31 [10-Q]: $610.00M (Filed: 2026-05-10)
+  2025-03-31 [10-Q]: $630.00M (Filed: 2025-05-10)
+
+Current Assets
+----------------------------------------
+  2026-03-31 [10-Q]: $100.00M (Filed: 2026-05-10)
+  2025-12-31 [10-Q]: $105.00M (Filed: 2026-05-10)
+
+Cash and Cash Equivalents
+----------------------------------------
+  2026-03-31 [10-Q]: $60.00M (Filed: 2026-05-10)
+  2025-12-31 [10-Q]: $62.00M (Filed: 2026-05-10)
+
+Current Liabilities
+----------------------------------------
+  2026-03-31 [10-Q]: $80.00M (Filed: 2026-05-10)
+  2025-12-31 [10-Q]: $82.00M (Filed: 2026-05-10)
+
+Shareholders Equity
+----------------------------------------
+  2026-03-31 [10-Q]: $50.00M (Filed: 2026-05-10)
+  2025-12-31 [10-Q]: $54.00M (Filed: 2026-05-10)
+
+================================================================================
+Cash Flow Statement — CLIFFCO
+Data source: SEC EDGAR XBRL (machine-tagged financial data)
+================================================================================
+
+
+Operating Cash Flow
+----------------------------------------
+  2026-03-31 [Quarterly, 10-Q]: $2.00M (Filed: 2026-05-10)
+  2025-12-31 [Annual, 10-K]: $8.00M (Filed: 2026-03-10)
+  2025-03-31 [Quarterly, 10-Q]: $2.00M (Source: 2026-05-10 (comparative, may reflect restatements))
+  2024-12-31 [Annual, 10-K]: $6.00M (Source: 2026-03-10 (comparative, may reflect restatements))
+
+================================================================================
+Income Statement — CLIFFCO
+Data source: SEC EDGAR XBRL (machine-tagged financial data)
+================================================================================
+
+
+Net Income
+----------------------------------------
+  2026-03-31 [Quarterly, 10-Q]: $1.00M (Filed: 2026-05-10)
+  2025-12-31 [Annual, 10-K]: $5.00M (Filed: 2026-03-10)
+  2025-03-31 [Quarterly, 10-Q]: $1.00M (Filed: 2025-05-10)
+
+EPS Basic
+----------------------------------------
+  2026-03-31 [Quarterly, 10-Q]: $0.10 (Filed: 2026-05-10)
+  2025-12-31 [Annual, 10-K]: $0.50 (Filed: 2026-03-10)
+  2025-03-31 [Quarterly, 10-Q]: $0.10 (Filed: 2025-05-10)
