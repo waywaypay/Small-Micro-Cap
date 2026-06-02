@@ -187,49 +187,50 @@ def _dera_provider(args):
 
 
 # Demo filing registry for the advisory Tier-3 command (frozen excerpts).
-_FILINGS = {
-    "WKHS": ("WKHS__going_concern.txt",
-             dict(form="10-K", filed="2026-03-31", section="Item 1A Risk Factors",
-                  accession="0001628280-26-022417")),
-}
+def _filing_provider(args):
+    if getattr(args, "filing_source", "fixture") == "edgar":
+        from .filings import EdgarFilingTextProvider
+        return EdgarFilingTextProvider(user_agent=args.user_agent)
+    from .filings import FixtureFilingTextProvider
+    return FixtureFilingTextProvider(args.filings)
+
+
+def _tier3_model(args):
+    from .tier3 import (CachedLanguageModel, ClaudeCodeLanguageModel,
+                        ClaudeLanguageModel)
+    if args.source == "claude":
+        return ClaudeLanguageModel(model=args.model or "claude-opus-4-8")
+    if args.source == "claude-code":
+        return ClaudeCodeLanguageModel(model=args.model or None)
+    return CachedLanguageModel(args.tier3_cache)
 
 
 def cmd_language(args) -> int:
     import datetime as _dt
-    from .tier3 import (CachedLanguageModel, ClaudeCodeLanguageModel,
-                        ClaudeLanguageModel, FilingSource, Tier3Analyzer)
+    from .tier3 import AdvisoryReport, Tier3Analyzer
 
+    as_of = _dt.date.fromisoformat(args.as_of)
     ticker = args.ticker.upper()
-    if ticker not in _FILINGS:
-        print(f"No filing fixture for {ticker}. Available: {', '.join(_FILINGS)}",
-              file=sys.stderr)
-        return 2
-    fname, meta = _FILINGS[ticker]
-    with open(os.path.join(args.filings, fname), "r", encoding="utf-8") as fh:
-        text = fh.read()
-    source = FilingSource(ticker=ticker, form=meta["form"],
-                          filed=_dt.date.fromisoformat(meta["filed"]),
-                          section=meta["section"], accession=meta["accession"])
-    if args.source == "claude":
-        model = ClaudeLanguageModel(model=args.model or "claude-opus-4-8")
-    elif args.source == "claude-code":
-        model = ClaudeCodeLanguageModel(model=args.model or None)
-    else:
-        model = CachedLanguageModel(args.tier3_cache)
-    report = Tier3Analyzer(
-        model, max_input_tokens=(args.max_input_tokens or None),
-        select=not args.no_select,
-    ).analyze(text, source, _dt.date.fromisoformat(args.as_of))
+    cik = _load_universe(args.universe).get(ticker)
+    sections = _filing_provider(args).get_relevant_sections(ticker, cik, as_of)
+    model = _tier3_model(args)
+    analyzer = Tier3Analyzer(model, max_input_tokens=(args.max_input_tokens or None),
+                             select=not args.no_select)
+    report = AdvisoryReport(ticker=ticker, as_of=as_of,
+                            model=getattr(model, "model", type(model).__name__))
+    for source, text in sections:
+        report.signals.extend(analyzer.analyze(text, source, as_of).signals)
 
     print("\n" + "=" * 70)
     print("TIER 3 — LANGUAGE SIGNALS  (ADVISORY · NON-DETERMINISTIC · LLM)")
     print("Not part of the deterministic T1+T2 score. Each signal is grounded")
     print("in a verbatim quote verified against the filing.")
     print("=" * 70)
+    srcs = ", ".join(sorted({f"{s.form} {s.section}" for s, _ in sections})) or "—"
     print(f"{report.ticker}  as-of {report.as_of}  model={report.model}  "
-          f"source={source.form} filed={source.filed} accn={source.accession}")
+          f"sections=[{srcs}]")
     if not report.signals:
-        print("  (no grounded signals)")
+        print("  (no grounded signals / no filing as-of date)")
     for s in report.signals:
         print(f"\n  [{s.severity.value:<6}] {s.type.value}")
         print(f"     why : {s.rationale}")
@@ -243,37 +244,50 @@ def cmd_language(args) -> int:
     return 0
 
 
+def _select_tickers(args, universe: dict) -> list[str]:
+    if args.from_scorecard:
+        with open(args.from_scorecard, "r", encoding="utf-8") as fh:
+            cards = json.load(fh)
+        # Tier 3 only on names the deterministic tiers flagged.
+        return [c["ticker"] for c in cards if c.get("num_flags", 0) > 0]
+    if args.tickers:
+        return [t.strip().upper() for t in args.tickers.split(",") if t.strip()]
+    return sorted(universe)
+
+
 def cmd_language_batch(args) -> int:
     import datetime as _dt
-    from .tier3 import (CachedLanguageModel, ClaudeLanguageModel, FilingSource,
-                        Tier3Analyzer, analyze_filings_batch)
+    from .tier3 import Tier3Analyzer, analyze_filings_batch
 
     as_of = _dt.date.fromisoformat(args.as_of)
+    universe = _load_universe(args.universe)
+    provider = _filing_provider(args)
+    tickers = _select_tickers(args, universe)
+
     items = []
-    for ticker, (fname, meta) in _FILINGS.items():
-        with open(os.path.join(args.filings, fname), "r", encoding="utf-8") as fh:
-            text = fh.read()
-        src = FilingSource(ticker=ticker, form=meta["form"],
-                           filed=_dt.date.fromisoformat(meta["filed"]),
-                           section=meta["section"], accession=meta["accession"])
-        items.append((src, text))
+    for t in tickers:
+        items.extend(provider.get_relevant_sections(t, universe.get(t), as_of))
 
     mit = args.max_input_tokens or None
     if args.source == "claude":
-        # One batched API job for the whole set (50% cheaper, async).
+        from .tier3 import ClaudeLanguageModel
         reports = analyze_filings_batch(
             ClaudeLanguageModel(model=args.model or "claude-opus-4-8"),
             items, as_of, max_input_tokens=mit, select=not args.no_select)
     else:
-        # cached path has no batch — analyze locally per filing.
-        analyzer = Tier3Analyzer(CachedLanguageModel(args.tier3_cache),
-                                 max_input_tokens=mit, select=not args.no_select)
+        model = _tier3_model(args)
+        analyzer = Tier3Analyzer(model, max_input_tokens=mit,
+                                 select=not args.no_select)
         reports = [analyzer.analyze(t, s, as_of) for s, t in items]
 
     payload = [r.to_dict() for r in sorted(reports, key=lambda r: r.ticker)]
-    print(f"Tier 3 batch — {len(payload)} filing(s), source={args.source}")
+    n_sig = sum(len(r["signals"]) for r in payload)
+    print(f"Tier 3 batch — {len(tickers)} name(s), {len(items)} section(s), "
+          f"{n_sig} grounded signal(s), source={args.source}")
     for r in payload:
-        print(f"  {r['ticker']}: {len(r['signals'])} grounded signal(s)")
+        if r["signals"]:
+            print(f"  {r['ticker']}: " +
+                  ", ".join(f"{s['type']}({s['severity']})" for s in r["signals"]))
     if args.json:
         os.makedirs(os.path.dirname(args.json) or ".", exist_ok=True)
         with open(args.json, "w", encoding="utf-8") as fh:
@@ -281,6 +295,7 @@ def cmd_language_batch(args) -> int:
             fh.write("\n")
         print(f"Wrote {args.json}")
     return 0
+
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -340,6 +355,10 @@ def build_parser() -> argparse.ArgumentParser:
                         "session's plan via the `claude` CLI")
     l.add_argument("--model", default="",
                    help="model id/alias; blank uses the session/provider default")
+    l.add_argument("--universe", default=os.path.join(_ROOT, "config", "universe.yaml"))
+    l.add_argument("--filing-source", choices=["fixture", "edgar"], default="fixture",
+                   help="fixture = frozen excerpts (default); edgar = fetch from SEC")
+    l.add_argument("--user-agent", default="Deerpark Research max@deerpark.io")
     l.add_argument("--filings", default=os.path.join(_ROOT, "tests", "fixtures", "filings"))
     l.add_argument("--tier3-cache", default=os.path.join(_ROOT, "tests", "fixtures", "tier3"))
     l.add_argument("--max-input-tokens", type=int, default=0,
@@ -350,13 +369,20 @@ def build_parser() -> argparse.ArgumentParser:
     l.set_defaults(func=cmd_language)
 
     lb = sub.add_parser("language-batch",
-                        help="Tier 3 over many filings in one batched job")
+                        help="Tier 3 over many flagged names in one batched job")
+    lb.add_argument("--from-scorecard", default="",
+                    help="run Tier 3 only on names flagged in this scorecard.json")
+    lb.add_argument("--tickers", default="", help="explicit comma list (overridden "
+                    "by --from-scorecard); default = whole universe")
     lb.add_argument("--as-of", default="2026-06-02")
     lb.add_argument("--source", choices=["cached", "claude"], default="cached",
                     help="claude = one Anthropic Batch API job (50%% cheaper)")
     lb.add_argument("--model", default="")
     lb.add_argument("--max-input-tokens", type=int, default=8000)
     lb.add_argument("--no-select", action="store_true")
+    lb.add_argument("--universe", default=os.path.join(_ROOT, "config", "universe.yaml"))
+    lb.add_argument("--filing-source", choices=["fixture", "edgar"], default="fixture")
+    lb.add_argument("--user-agent", default="Deerpark Research max@deerpark.io")
     lb.add_argument("--filings", default=os.path.join(_ROOT, "tests", "fixtures", "filings"))
     lb.add_argument("--tier3-cache", default=os.path.join(_ROOT, "tests", "fixtures", "tier3"))
     lb.add_argument("--json", default="")

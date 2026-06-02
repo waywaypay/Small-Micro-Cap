@@ -1,0 +1,6 @@
+{
+  "_note": "Frozen filing excerpts that feed Tier 3 (FixtureFilingTextProvider). ticker -> list of {file, form, filed, accession, section}. The production EdgarFilingTextProvider fetches these from EDGAR instead.",
+  "WKHS": [
+    {"file": "WKHS__going_concern.txt", "form": "10-K", "filed": "2026-03-31", "accession": "0001628280-26-022417", "section": "Item 1A Risk Factors — Going Concern"}
+  ]
+}

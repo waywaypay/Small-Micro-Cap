@@ -115,21 +115,32 @@ to surface soft-risk signals the numeric and event rules can't see. It is the
   signal back to the filing even though the judgment isn't reproducible.
 - **Point-in-time** — a filing filed after the as-of date is never analyzed.
 
+- **Flag-relevant fetch** — `landmine/filings.py` supplies only the sections
+  worth analyzing for the latest filing knowable as-of a date.
+  `FixtureFilingTextProvider` reads frozen excerpts (default/offline);
+  `EdgarFilingTextProvider` resolves the latest 10-K/10-Q from the EDGAR
+  submissions API and extracts Risk Factors / MD&A / going-concern text (network
+  fetch injectable, parsing unit-tested offline). Both are point-in-time.
 - **Cost control** — Tier 3 is the only paid tier, so input is shaped before it
   reaches the model: `select_passages` keeps only blocks mentioning distress
   vocabulary (going concern, working-capital deficiency, covenant, dilution, …)
   and `--max-input-tokens` caps the budget. A whole-universe pass is **one
-  batched job** via the Anthropic Batch API (50% cheaper, async). Running Tier 3
-  only on names already flagged by Tiers 1–2, with passage selection + Haiku/
-  Sonnet + batch, a full small/mid-cap pass is single-digit-to-low-tens of
-  dollars; the deterministic tiers that do most of the detection are free.
+  batched job** via the Anthropic Batch API (50% cheaper, async), and
+  `--from-scorecard` runs Tier 3 **only on names Tiers 1–2 flagged**. With
+  passage selection + Haiku/Sonnet + batch, a full small/mid-cap pass is
+  single-digit-to-low-tens of dollars; the deterministic tiers that do most of
+  the detection are free.
 
 ```bash
 landmine language --ticker WKHS                               # cached/offline (default)
 landmine language --ticker WKHS --source claude-code          # live, via the Claude Code session plan (no API key)
 landmine language --ticker WKHS --source claude               # live, via Anthropic SDK (needs ANTHROPIC_API_KEY)
 landmine language --ticker WKHS --source claude-code --max-input-tokens 4000   # cap tokens sent
-landmine language-batch --source claude                       # one Batch API job over many filings (50% cheaper)
+landmine language --ticker WKHS --filing-source edgar         # fetch real sections from SEC (needs egress)
+
+# Full pipeline — deterministic screen, then Tier 3 only on the flagged names:
+landmine run --as-of 2026-06-02 --json out/scorecard.json
+landmine language-batch --from-scorecard out/scorecard.json --source claude   # one Batch API job
 ```
 
 ```
@@ -300,7 +311,8 @@ landmine/
   dera.py              DERA bulk-dataset ingestion (sub.txt + num.txt -> Facts)
   synthetic.py         deterministic synthetic-at-scale dataset for backtesting
   tier3.py             ADVISORY LLM language layer (quarantined, non-deterministic)
-  cli.py               `python -m landmine run | calibrate | backtest | language`
+  filings.py           fetch flag-relevant filing sections (fixture | EDGAR) for Tier 3
+  cli.py               `python -m landmine run | calibrate | backtest | language | language-batch`
 config/                thresholds.yaml, universe.yaml, labels.yaml
 tests/                 PIT, determinism, rules, parser  (+ frozen fixtures/raw/)
 ```
