@@ -63,8 +63,11 @@ Tier 2 flags *events* from filing metadata — still fully deterministic
 Events carry their filing date, so the same `as_of` discipline applies, and each
 result rolls up into the **same auditable scorecard** as Tier 1 (rule codes
 prefixed `T2_`). Events are captured from the SEC MCP and frozen to JSON
-fixtures (`tests/fixtures/events/`); the production seam reads the EDGAR
-submissions / full-text APIs.
+fixtures (`tests/fixtures/events/`, the default). For live names,
+`run --events-source edgar` uses `EdgarEventProvider`: one submissions-API call
+per CIK classifies forms and 8-K item numbers into the same `Event` schema, and
+going-concern / material-weakness opinions are detected by text detectors over
+the latest 10-K — so a live run is a real all-tiers screen, not Tier-1-only.
 
 | Code | Event | Source |
 |------|-------|--------|
@@ -90,7 +93,24 @@ CENN picks up a delisting notice. Everything is strictly point-in-time: WKHS's
 2024 424B5 wave flags as-of 2025-03-01 but ages out by 2026-06-02, and SPCE's
 2024 delisting / 2021 restatement 8-Ks flag in their day and age out later. Tier
 2 runs by default in `landmine run` for any ticker with an event fixture
-(disable with `--no-events`).
+(disable with `--no-events`; go live with `--events-source edgar`).
+
+### Data-quality guards
+
+Two cross-checks keep a flag honest (both config-driven, both unit-tested):
+
+- **Staleness** — a Tier-1 flag is only as good as the freshest filing under it.
+  If the newest cited `period_end` is older than `staleness.max_age_days` (~18
+  months — a company that stopped filing), the flag is **marked stale** in
+  `raw_values` (default `annotate`: the name stays flagged and excluded, the
+  years-old burn rate just isn't trusted) — or recast as `INSUFFICIENT_DATA`
+  with `action: downgrade`. It keys on the *freshest* citation, so a YoY rule's
+  deliberate ~1-year-old comparison period is never mistaken for staleness;
+  Tier-2 events are exempt (they self-gate on recency).
+- **Corroboration** — the cash-runway (`R2`) flag is annotated with the Tier-2
+  events that independently confirm the same distress (going concern, serial
+  offerings, late filing, …), so confirmed runway flags rank above lone ones.
+  Annotation-only by default; `downgrade_uncorroborated` caps an unconfirmed flag.
 
 ## Tier 3 — language layer (advisory, non-deterministic)
 
@@ -304,8 +324,10 @@ landmine/
     mcp_parser.py      frozen SEC-MCP text -> Facts (incl. restatement vintages)
     provider.py        FixtureProvider (deterministic) | HttpCompanyFactsProvider (prod)
   rules/               one Tier-1 module per rule + ordered registry
-  events.py            Tier-2 Event model, EventSet.as_of(), FixtureEventProvider
+  events.py            Tier-2 Event model, EventSet.as_of(), Fixture + EdgarEventProvider
   rules_t2.py          Tier-2 event rules (going concern, material weakness, ...)
+  staleness.py         downgrade a Tier-1 flag built on years-stale data
+  corroboration.py     confirm the cash-runway flag with Tier-2 events
   scoring.py           run Tier-1 (+ Tier-2 if events given) as-of a date -> Scorecard
   persistence.py       SQLite + canonical JSON
   calibrate.py         precision/recall on a labeled set (tuning, no rule changes)
@@ -360,17 +382,33 @@ stands in for is the literal HTTP GET, which runs unchanged where egress to
 ## Universe builder
 
 ```bash
-landmine universe --source sec --size-source public-float \
-  --min-cap 50e6 --max-cap 10e9 --out config/universe.yaml
+landmine universe --source sec --size-source frames --operating-only \
+  --min-cap 50e6 --max-cap 2e9 --out config/universe.yaml
 ```
 
 Pulls the full filer list from SEC `company_tickers.json` (ticker/CIK/name) and
-applies a size cut. SEC's ticker file has no market cap, so the default size
-measure is **`dei:EntityPublicFloat`** (filed on every 10-K cover, point-in-time,
-no price feed needed); `StaticSizeProvider` plugs in an external market-cap feed
-if you have one. Writes a `universe.yaml` the rest of the CLI consumes. Network
-fetch is injectable and the parse/cut logic is unit-tested offline; the live
-fetch runs where SEC egress is allowed.
+applies a size cut. SEC's ticker file has no market cap, so the size measure is
+**`dei:EntityPublicFloat`** (filed on every 10-K cover, point-in-time, no price
+feed needed).
+
+- **`--size-source frames`** sizes the **whole market in a handful of calls** via
+  the SEC **frames API** — one request returns the float for every filer in a
+  calendar quarter, versus one ~2 MB companyfacts download per name (~10k names ≈
+  100 min). `FramesSizeProvider` pulls several quarterly *instant* frames and
+  keeps the latest float on/before the as-of date per CIK (covering off-calendar
+  fiscal years). `public-float` (per-name companyfacts) and `static` (external
+  feed) remain as fallbacks.
+- **`--operating-only`** drops the non-operating vehicles a float cut drags in —
+  ETFs, commodity/crypto trusts, blank-check SPACs — whose balance sheets have no
+  operating cash flow or normal equity, so the distress rules misfire on them. It
+  classifies deterministically by **SIC code** (`6726` investment offices, `6770`
+  blank checks, `6221`/`6199` commodity-crypto trusts) read from the submissions
+  document, with a name-marker fallback; every exclusion records an auditable
+  reason and an unknown SIC is kept (never silently dropped).
+
+Writes a `universe.yaml` the rest of the CLI consumes. Network fetch is injectable
+and the parse/cut/classify logic is unit-tested offline; the live fetch runs where
+SEC egress is allowed.
 
 Full chain: `universe` → `run` (deterministic T1+T2) → `language-batch
 --from-scorecard` (Tier 3 only on flagged names) → `portfolio` (exclude the

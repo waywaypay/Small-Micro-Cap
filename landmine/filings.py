@@ -112,6 +112,17 @@ class EdgarFilingTextProvider:
         with urllib.request.urlopen(req, timeout=30) as resp:
             return resp.read().decode("utf-8", "replace")
 
+    def fetch_filing_text(self, cik: str, accession: str,
+                          primary_doc: str) -> str:
+        """Fetch + strip the primary document of one filing (full text).
+
+        Reused by the Tier-2 event provider to run going-concern / material-
+        weakness detectors over a 10-K. Network fetch is injectable.
+        """
+        url = self.ARCHIVE.format(cik=int(cik), accn=accession.replace("-", ""),
+                                  doc=primary_doc)
+        return _strip_html(self._fetch(url))
+
     def get_relevant_sections(self, ticker: str, cik: Optional[str],
                               as_of: dt.date) -> list[tuple[FilingSource, str]]:
         if not cik:

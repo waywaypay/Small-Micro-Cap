@@ -30,6 +30,14 @@ Classified by 8-K item number / form type, each with a configurable recency wind
 | `T2_LATE_FILING` | NT 10-K / NT 10-Q |
 | `T2_DILUTION_EVENTS` | cluster of S-3/424B shelf takedowns in a window |
 
+**Event sourcing.** Default is frozen fixtures (deterministic, offline). For live
+names, `run --events-source edgar` uses `EdgarEventProvider`: one submissions-API
+call per CIK classifies forms and 8-K item numbers into the same `Event` schema
+(`NT 10-K/Q`→late filing; 8-K Items 4.02/4.01/3.01/1.03→restatement/auditor-change/
+delisting/bankruptcy; `S-3`/`424B`→offering), and going-concern / material-weakness
+opinions are detected by running text detectors over the latest 10-K. Point-in-time
+is enforced downstream by `EventSet.as_of`, identically to the fixtures.
+
 ## Tier 3 — language signals (LLM, advisory, NON-deterministic, never scored)
 
 Soft-risk types: `GOING_CONCERN_LANGUAGE`, `LIQUIDITY_DOUBT`,
@@ -39,6 +47,23 @@ Soft-risk types: `GOING_CONCERN_LANGUAGE`, `LIQUIDITY_DOUBT`,
 signal carries a **verbatim quote** that is verified to appear in the source
 (ungrounded signals are dropped). Backends: `cached` (frozen/offline), `claude`
 (Anthropic SDK), `claude-code` (the current Claude Code session's plan).
+
+## Data-quality guards
+
+- **Staleness** (`config/thresholds.yaml` → `staleness`). A Tier-1 flag is only as
+  good as the freshest filing under it. If the newest `period_end` among a flag's
+  citations is older than `max_age_days` (~18 months by default — a company that
+  stopped filing), the flag is kept and marked stale in `raw_values`
+  (`action: annotate`, the **default** — the name stays flagged and excluded
+  downstream, just untrusted) or recast as `INSUFFICIENT_DATA` (`action:
+  downgrade`). Keys on the *freshest* citation,
+  so a YoY rule's intentional ~1-year-old comparison period is not mistaken for
+  staleness. Tier-2 events are exempt (they self-gate on recency windows).
+- **Corroboration** (`→ corroboration`). The `R2_CASH_RUNWAY` flag is annotated
+  with the Tier-2 events (going concern, serial offerings, late filing, delisting,
+  …) that independently confirm the same distress within a window. Annotation-only
+  by default (score unchanged); `downgrade_uncorroborated: true` caps a lone,
+  unconfirmed runway flag.
 
 ## Severity & scoring
 
@@ -67,3 +92,20 @@ Canonical source is SEC EDGAR XBRL companyfacts (`filed` date = as-of stamp,
 frozen to fixtures. `CompanyFacts.as_of(date)` is the single look-ahead guard:
 for each (concept, period) it keeps the latest vintage filed on/before the as-of
 date, so restatements are respected without look-ahead.
+
+## Universe construction (`landmine universe`)
+
+- **Sizing.** `--size-source frames` (recommended live) pulls
+  `dei:EntityPublicFloat` from the SEC **frames API** — one request returns the
+  float for every filer in a calendar quarter, so the whole market is sized in a
+  handful of calls instead of one companyfacts download per name. It pulls several
+  quarterly *instant* frames and keeps the latest float on/before the as-of date
+  per CIK (covering off-calendar fiscal years). `public-float` (per-name
+  companyfacts) and `static` (offline map) remain as fallbacks.
+- **Operating-company filter.** `--operating-only` drops non-operating vehicles a
+  float cut drags in — ETFs, commodity/crypto trusts, blank-check SPACs — whose
+  balance sheets have no operating cash flow or normal equity, so the distress
+  rules misfire on them. Deterministic by SIC code (`6726` investment offices,
+  `6770` blank checks, `6221`/`6199` commodity-crypto trusts), read from the
+  submissions document, with a name-marker fallback; every exclusion records an
+  auditable reason. An unknown SIC is kept (never silently dropped).

@@ -121,6 +121,42 @@ rules:
     severity_cap: 7.0           # min_count + 7 offerings -> score 1.0
     severity_bands: [0.0, 2.0, 4.0, 6.0]
 
+# Data-quality guard. A flag is only as good as the data under it: if even the
+# freshest input a Tier-1 flag stands on is older than the window (the company
+# likely stopped filing), the runway/equity/ratio number can't be trusted.
+staleness:
+  enabled: true
+  # newest period_end among a flag's citations must be within this many days of
+  # as_of; ~18 months clears normal annual+quarterly filers but catches names
+  # whose latest data is years stale.
+  max_age_days: 540
+  # annotate -> keep the flag but mark it stale in raw_values (default): a
+  #   negative-selection screen stays conservative — the name is still flagged
+  #   (and still excluded by `portfolio`), the human is just warned not to trust
+  #   the stale figure. downgrade -> recast the flag as INSUFFICIENT_DATA (a stale
+  #   number is unknown); cleaner flag counts, but a name whose ONLY signal was a
+  #   stale flag then stops being excluded downstream, so opt into it knowingly.
+  action: annotate
+  # only Tier-1 numeric rules are guarded here — Tier-2 events have their own
+  # recency windows (recency_days / window_days).
+  rule_prefix: "R"
+
+# Cross-tier corroboration. A short cash runway is far more actionable when an
+# independent Tier-2 event (going concern, serial offerings, late filing, …)
+# confirms the same distress. Annotates each R2 flag with its corroborating
+# events; with downgrade_uncorroborated it also caps a lone (unconfirmed) flag.
+corroboration:
+  enabled: true
+  R2_CASH_RUNWAY:
+    corroborating_events: [GOING_CONCERN, MATERIAL_WEAKNESS, LATE_FILING,
+                           DELISTING, BANKRUPTCY, RESTATEMENT, OFFERING]
+    within_days: 540
+    # true -> an uncorroborated R2 flag is capped to this severity/score (changes
+    # the deterministic score); false -> annotate only, leave the score untouched.
+    downgrade_uncorroborated: false
+    uncorroborated_severity: MEDIUM
+    uncorroborated_score_cap: 0.5
+
 scoring:
   # weight applied to each rule's severity_score in the rollup total.
   weights:
