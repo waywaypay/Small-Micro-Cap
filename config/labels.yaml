@@ -1,0 +1,16 @@
+# Labeled evaluation set for calibration. Each entry: a ground-truth label and
+# the as-of date to evaluate (point-in-time). CIKs come from universe.yaml.
+#
+# This is a tiny demonstration set (the screen's vertical slice). It validates
+# the calibration MACHINERY and reports per-rule coverage; it is NOT large
+# enough to tune thresholds — that needs a few hundred labeled names with
+# pre-event as-of dates. Expand `labels` and re-run `landmine calibrate`.
+default_as_of: "2026-06-02"
+
+labels:
+  WKHS: { label: distress, note: "going concern, <1Q cash runway" }
+  CENN: { label: distress, note: "material weakness, short runway" }
+  BYND: { label: distress, note: "negative equity, debt-exchange accruals, heavy dilution" }
+  AMC:  { label: distress, note: "negative equity, current ratio 0.35" }
+  AAPL: { label: healthy,  note: "control" }
+  MSFT: { label: healthy,  note: "control" }

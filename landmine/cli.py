@@ -15,6 +15,9 @@ import sys
 
 import yaml
 
+import json
+
+from .calibrate import calibrate
 from .config import Config
 from .data.provider import FixtureProvider, HttpCompanyFactsProvider
 from .models import Status
@@ -84,6 +87,50 @@ def cmd_run(args) -> int:
     return 0
 
 
+def _print_calibration(rep: dict) -> None:
+    print(f"\nCalibration — {rep['n']} names "
+          f"({rep['n_distress']} distress / {rep['n_healthy']} healthy)")
+    print("\nPer-ticker:")
+    print(f"  {'TICKER':<8}{'ACTUAL':<10}{'FLAGS':<7}{'SCORE':<8}FLAGGED")
+    for r in rep["rows"]:
+        print(f"  {r['ticker']:<8}{r['actual']:<10}{r['num_flags']:<7}"
+              f"{r['weighted_total']:<8.2f}{', '.join(r['flagged_rules'])}")
+    c = rep["any_flag_confusion"]
+    print(f"\nAny-flag predictor: precision={c['precision']} recall={c['recall']} "
+          f"F1={c['f1']} accuracy={c['accuracy']}  "
+          f"(TP={c['tp']} FP={c['fp']} FN={c['fn']} TN={c['tn']})")
+    print("\nPer-rule coverage:")
+    print(f"  {'RULE':<22}{'FIRED':<7}{'PREC':<7}{'RECALL':<8}{'INSUFF':<7}")
+    for code, m in rep["per_rule"].items():
+        prec = "—" if m["precision"] is None else f"{m['precision']:.2f}"
+        rec = "—" if m["recall_of_distress"] is None else f"{m['recall_of_distress']:.2f}"
+        print(f"  {code:<22}{m['fired']:<7}{prec:<7}{rec:<8}{m['insufficient']:<7}")
+    print("\nScore-cutoff sweep (predict distress if weighted_total >= cutoff):")
+    print(f"  {'CUTOFF':<8}{'PREC':<7}{'RECALL':<8}{'F1':<7}{'ACC':<6}")
+    for s in rep["score_cutoff_sweep"]:
+        print(f"  {s['cutoff']:<8}{s['precision']:<7}{s['recall']:<8}"
+              f"{s['f1']:<7}{s['accuracy']:<6}")
+
+
+def cmd_calibrate(args) -> int:
+    cfg = Config.load(args.config)
+    with open(args.labels, "r", encoding="utf-8") as fh:
+        label_doc = yaml.safe_load(fh)
+    labels = label_doc.get("labels", {})
+    default_as_of = dt.date.fromisoformat(label_doc.get("default_as_of", args.as_of))
+    universe = _load_universe(args.universe)
+    provider = _build_provider(args, cfg)
+    report = calibrate(labels, universe, cfg, provider, default_as_of)
+    _print_calibration(report)
+    if args.json:
+        os.makedirs(os.path.dirname(args.json) or ".", exist_ok=True)
+        with open(args.json, "w", encoding="utf-8") as fh:
+            json.dump(report, fh, sort_keys=True, indent=2)
+            fh.write("\n")
+        print(f"\nWrote {args.json}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="landmine", description=__doc__)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -98,6 +145,17 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--db", default=os.path.join(_ROOT, "out", "landmine.sqlite"))
     r.add_argument("--json", default=os.path.join(_ROOT, "out", "scorecard.json"))
     r.set_defaults(func=cmd_run)
+
+    c = sub.add_parser("calibrate", help="measure precision/recall on a labeled set")
+    c.add_argument("--labels", default=os.path.join(_ROOT, "config", "labels.yaml"))
+    c.add_argument("--config", default=os.path.join(_ROOT, "config", "thresholds.yaml"))
+    c.add_argument("--universe", default=os.path.join(_ROOT, "config", "universe.yaml"))
+    c.add_argument("--as-of", default="2026-06-02", help="fallback as-of date")
+    c.add_argument("--source", choices=["fixture", "companyfacts"], default="fixture")
+    c.add_argument("--fixtures", default=os.path.join(_ROOT, "tests", "fixtures", "raw"))
+    c.add_argument("--cache", default=os.path.join(_ROOT, "out", "companyfacts_cache"))
+    c.add_argument("--json", default=os.path.join(_ROOT, "out", "calibration.json"))
+    c.set_defaults(func=cmd_calibrate)
     return p
 
 

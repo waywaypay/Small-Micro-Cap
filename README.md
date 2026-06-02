@@ -85,6 +85,24 @@ controls pass cleanly. Note two deliberate behaviours:
   The companyfacts path would report this `high` confidence from raw share
   counts — see `tests/test_companyfacts.py`.
 
+## Calibration
+
+```bash
+python -m landmine calibrate            # uses config/labels.yaml
+```
+
+Runs the engine over a labeled set (point-in-time, as-of each label's date) and
+reports a confusion matrix + precision/recall/F1 for "any flag fired", per-rule
+coverage, and a sweep over the weighted-score cutoff. This is how you tune
+`thresholds.yaml` — it changes no rule logic and is fully deterministic.
+
+On the 6-name slice every distress name is caught and no healthy control
+false-fires, and the cutoff sweep shows clean separation for any
+`weighted_total` threshold in `(0, ~1.0]`. **Caveat:** six hand-picked names
+measure the *harness*, not real-world skill — meaningful threshold calibration
+needs a few hundred labeled names with pre-event as-of dates. Expand
+`config/labels.yaml` and re-run.
+
 ## Architecture
 
 ```
@@ -99,8 +117,9 @@ landmine/
   rules/               one module per rule + ordered registry
   scoring.py           run rules as-of a date -> Scorecard
   persistence.py       SQLite + canonical JSON
-  cli.py               `python -m landmine run`
-config/                thresholds.yaml, universe.yaml (ticker -> CIK)
+  calibrate.py         precision/recall on a labeled set (tuning, no rule changes)
+  cli.py               `python -m landmine run | calibrate`
+config/                thresholds.yaml, universe.yaml, labels.yaml
 tests/                 PIT, determinism, rules, parser  (+ frozen fixtures/raw/)
 ```
 
