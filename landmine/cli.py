@@ -372,9 +372,12 @@ def cmd_universe(args) -> int:
         else:
             classifier = SubmissionsEntityClassifier(user_agent=args.user_agent,
                                                      cache_dir=args.cache or None)
-        universe, excluded = partition_operating(universe, titles, classifier)
+        universe, excluded = partition_operating(
+            universe, titles, classifier,
+            exclude_healthcare=not args.keep_healthcare)
 
-    dropped = f"; {len(excluded)} non-operating dropped" if args.operating_only else ""
+    dropped = f"; {len(excluded)} excluded by operating-only filter" \
+        if args.operating_only else ""
     note = (f"Generated {args.as_of}: {len(universe)}/{len(records)} names in "
             f"[{args.min_cap:,.0f}, {args.max_cap:,.0f}] USD "
             f"({args.size_source}{dropped}).")
@@ -382,7 +385,8 @@ def cmd_universe(args) -> int:
     for t in sorted(universe):
         print(f"  {t}  {universe[t]}")
     if excluded:
-        print(f"\nExcluded {len(excluded)} non-operating entities:")
+        print(f"\nExcluded {len(excluded)} entities (non-operating vehicles + "
+              f"excluded sectors):")
         for e in excluded:
             print(f"  {e.ticker:<8}{e.cik}  {e.reason}")
     write_universe_yaml(universe, args.out, note=note)
@@ -541,8 +545,12 @@ def build_parser() -> argparse.ArgumentParser:
                         "static = offline size map")
     u.add_argument("--operating-only", action="store_true",
                    help="drop non-operating entities (ETFs / SPACs / commodity-"
-                        "crypto trusts) by SIC code, so the distress rules only "
-                        "score operating companies")
+                        "crypto trusts) by SIC code, plus the healthcare sector "
+                        "(clinical/pre-revenue biotech), so the distress rules "
+                        "only score the operating companies in scope")
+    u.add_argument("--keep-healthcare", action="store_true",
+                   help="under --operating-only, keep healthcare/biotech (drop "
+                        "only the non-operating vehicles)")
     u.add_argument("--entities", default="",
                    help="static cik->{sic,...} json for offline operating "
                         "classification; blank = live submissions API")

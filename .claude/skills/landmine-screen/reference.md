@@ -108,4 +108,10 @@ date, so restatements are respected without look-ahead.
   rules misfire on them. Deterministic by SIC code (`6726` investment offices,
   `6770` blank checks, `6221`/`6199` commodity-crypto trusts), read from the
   submissions document, with a name-marker fallback; every exclusion records an
-  auditable reason. An unknown SIC is kept (never silently dropped).
+  auditable reason. An unknown SIC is kept (never silently dropped). It also
+  removes the **healthcare** sector (pharma/biologics `2833`–`2836`, devices
+  `3826`/`3841`–`3851`, health services `8000`–`8099`) as a labeled sector
+  exclusion (reason `healthcare sector`) — clinical/pre-revenue biotech's going
+  concern & dilution are its business model, not distress; `--keep-healthcare`
+  retains it. SIC is authoritative, so a healthcare-sounding name with a real
+  non-healthcare SIC is kept.

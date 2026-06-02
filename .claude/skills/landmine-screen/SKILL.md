@@ -45,7 +45,8 @@ only data filed on/before it; no look-ahead).
 2. **A whole universe**: build it once, then screen:
    ```bash
    # frames API sizes the entire market in a handful of calls (not one
-   # companyfacts download per name); --operating-only drops ETFs/SPACs/trusts.
+   # companyfacts download per name); --operating-only drops ETFs/SPACs/trusts
+   # plus the healthcare sector (--keep-healthcare to retain biotech).
    python -m landmine universe --source sec --size-source frames --operating-only \
      --min-cap 50e6 --max-cap 2e9 --out config/universe.yaml
    # live run: companyfacts for Tier 1, the submissions API for live Tier 2.

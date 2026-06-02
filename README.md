@@ -404,7 +404,15 @@ feed needed).
   classifies deterministically by **SIC code** (`6726` investment offices, `6770`
   blank checks, `6221`/`6199` commodity-crypto trusts) read from the submissions
   document, with a name-marker fallback; every exclusion records an auditable
-  reason and an unknown SIC is kept (never silently dropped).
+  reason and an unknown SIC is kept (never silently dropped). It **also** drops
+  the **healthcare** sector (pharma/biologics `2833`–`2836`, devices `3826` /
+  `3841`–`3851`, health services `8000`–`8099`) — these *are* operating
+  companies, but clinical / pre-revenue biotech shows going concern, short runway,
+  and heavy dilution as a business-model trait the distress rules can't tell from
+  real distress, so it's removed as a **labeled sector exclusion** (its reason
+  reads `healthcare sector`, distinct from the vehicle drops). SIC is
+  authoritative here too, so a healthcare-sounding name with a real non-healthcare
+  SIC is kept. Pass `--keep-healthcare` to drop only the non-operating vehicles.
 
 Writes a `universe.yaml` the rest of the CLI consumes. Network fetch is injectable
 and the parse/cut/classify logic is unit-tested offline; the live fetch runs where
