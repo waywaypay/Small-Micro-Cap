@@ -7,19 +7,29 @@
 #   BYND  Beyond Meat       - negative equity (R3), debt-exchange accruals (R5), 6x dilution (R1)
 #   AMC   AMC Entertainment - negative equity (R3), current ratio 0.35 (R4), short runway (R2)
 #   PLUG  Plug Power        - going concern, ~1.5Q cash runway (R2)
+#   INO   Inovio            - clinical biotech, ~1.2Q cash runway (R2)
+#   SPCE  Virgin Galactic   - heavy burn, ~2.3Q cash runway (R2)
 # Healthy controls (expected to pass):
 #   AAPL  Apple Inc.
 #   MSFT  Microsoft Corp.
 #   COST  Costco            - clean healthy control
+#   NVDA  NVIDIA            - clean healthy control
+#   DECK  Deckers           - clean healthy mid-cap
+#   HD    Home Depot        - clean healthy control
 #   SBUX  Starbucks         - HARD CASE: healthy but buyback-driven negative equity (R3)
-#                             and sub-1 current ratio (R4) -> known false positives
+#                             and sub-1 current ratio (R4) -> cleared by cash-generative gate
 universe:
   WKHS: "0001425287"
   CENN: "0001707919"
   BYND: "0001655210"
   AMC: "0001411579"
   PLUG: "0001093691"
+  INO: "0001055726"
+  SPCE: "0001706946"
   AAPL: "0000320193"
   MSFT: "0000789019"
   COST: "0000909832"
+  NVDA: "0001045810"
+  DECK: "0000910521"
+  HD: "0000354950"
   SBUX: "0000829224"

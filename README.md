@@ -74,15 +74,20 @@ TICKER  FLAGS  MAXSEV    SCORE   FLAGGED RULES
 BYND    3      CRITICAL  1.55    R1_DILUTION, R3_NEGATIVE_EQUITY, R5_EARNINGS_QUALITY
 AMC     3      CRITICAL  1.54    R2_CASH_RUNWAY, R3_NEGATIVE_EQUITY, R4_LIQUIDITY
 WKHS    1      CRITICAL  1.49    R2_CASH_RUNWAY
+INO     1      HIGH      1.04    R2_CASH_RUNWAY
 CENN    1      HIGH      1.02    R2_CASH_RUNWAY
 PLUG    1      HIGH      0.94    R2_CASH_RUNWAY
+SPCE    1      MEDIUM    0.62    R2_CASH_RUNWAY
 AAPL    0      NONE      0.00
-MSFT    0      NONE      0.00
 COST    0      NONE      0.00
+DECK    0      NONE      0.00
+HD      0      NONE      0.00
+MSFT    0      NONE      0.00
+NVDA    0      NONE      0.00
 SBUX    0      NONE      0.00
 ```
 
-Each rule R1–R5 fires on at least one real distress name, and all four healthy
+Each rule R1–R5 fires on at least one real distress name, and all seven healthy
 controls pass — including SBUX, a healthy megacap with buyback-driven negative
 equity and a sub-1 current ratio that R3/R4 clear via the cash-generative gate
 (see Calibration). Note two further behaviours:
@@ -110,9 +115,9 @@ coverage, and a sweep over the weighted-score cutoff. This is how you tune
 ### How calibration drove a rule refinement
 
 The harness earned its keep by catching a real false-positive, which was then
-fixed. On the 9-name set (5 distress / 4 healthy), **Starbucks** — clearly
-healthy — initially tripped **R3** (buyback-driven negative equity, −$8.5B) and
-**R4** (sub-1 current ratio, 0.92), dropping their precision to 0.67 / 0.50.
+fixed. On the labeled set, **Starbucks** — clearly healthy — initially tripped
+**R3** (buyback-driven negative equity, −$8.5B) and **R4** (sub-1 current ratio,
+0.92), dropping their precision to 0.67 / 0.50.
 
 The fix: a **cash-generative gate** (`require_negative_ocf`, on by default).
 Negative equity or a sub-1 current ratio only signals distress when the company
@@ -122,22 +127,27 @@ choice, not a landmine. The gate clears SBUX (recorded as
 while AMC and BYND — negative equity *and* burning cash — still flag. SBUX now
 stays in the labeled set as a **regression guard**.
 
-After the fix:
+After the fix, on the 14-name set (7 distress / 7 healthy):
 
 ```
-Any-flag predictor: precision=1.0 recall=1.0  (TP=5 FP=0 FN=0 TN=4)
+Any-flag predictor: precision=1.0 recall=1.0  (TP=7 FP=0 FN=0 TN=7)
 
 Per-rule:              FIRED  PREC   RECALL
-  R1_DILUTION           1     1.00   0.20
-  R2_CASH_RUNWAY        4     1.00   0.80     <- the workhorse signal
-  R3_NEGATIVE_EQUITY    2     1.00   0.40
-  R4_LIQUIDITY          1     1.00   0.20
-  R5_EARNINGS_QUALITY   1     1.00   0.20
+  R1_DILUTION           1     1.00   0.14
+  R2_CASH_RUNWAY        6     1.00   0.86     <- the workhorse signal
+  R3_NEGATIVE_EQUITY    2     1.00   0.29
+  R4_LIQUIDITY          1     1.00   0.14
+  R5_EARNINGS_QUALITY   1     1.00   0.14
 ```
 
-**Caveat:** nine hand-picked names measure the *harness and rule behaviour*, not
-real-world skill — meaningful threshold calibration needs a few hundred labeled
-names with pre-event as-of dates. Expand `config/labels.yaml` and re-run.
+Cash runway carries most of the recall; the balance-sheet/dilution/accruals
+rules each catch a distinct slice. The score-cutoff sweep separates cleanly for
+any `weighted_total` in `(0, ~0.6]`.
+
+**Caveat:** fourteen hand-picked names measure the *harness and rule
+behaviour*, not real-world skill — meaningful threshold calibration needs a few
+hundred labeled names with pre-event as-of dates. Expand `config/labels.yaml`
+and re-run.
 
 ## Architecture
 

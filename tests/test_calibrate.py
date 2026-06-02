@@ -23,7 +23,7 @@ def _report():
 
 def test_set_shape():
     rep = _report()
-    assert rep["n"] == 9 and rep["n_distress"] == 5 and rep["n_healthy"] == 4
+    assert rep["n"] == 14 and rep["n_distress"] == 7 and rep["n_healthy"] == 7
 
 
 def test_no_distress_name_is_missed():
@@ -48,9 +48,9 @@ def test_buyback_name_no_longer_false_fires():
 
 def test_cash_runway_is_the_workhorse_rule():
     per = _report()["per_rule"]
-    assert per["R2_CASH_RUNWAY"]["fired"] == 4
+    assert per["R2_CASH_RUNWAY"]["fired"] == 6
     assert per["R2_CASH_RUNWAY"]["precision"] == 1.0
-    assert per["R2_CASH_RUNWAY"]["recall_of_distress"] == 0.8
+    assert per["R2_CASH_RUNWAY"]["recall_of_distress"] > 0.8
 
 
 def test_score_cutoff_sweep_separates_and_is_deterministic():
