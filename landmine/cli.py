@@ -87,15 +87,41 @@ def cmd_run(args) -> int:
     provider = _build_provider(args, cfg)
     eprov = _build_event_provider(args, cfg)
     cards = []
-    for ticker, cik in sorted(universe.items()):
-        facts = provider.get_company_facts(ticker, cik)
-        events = eprov.get_events(ticker, cik) if (eprov and eprov.has(ticker)) else None
+    skipped = []
+    ev_errors = []
+    total = len(universe)
+    for i, (ticker, cik) in enumerate(sorted(universe.items()), 1):
+        try:
+            facts = provider.get_company_facts(ticker, cik)
+        except Exception as exc:
+            skipped.append(ticker)
+            print(f"  [skip] {ticker} (CIK {cik}): {type(exc).__name__}: {exc}",
+                  file=sys.stderr)
+            continue
+        events = None
+        if eprov is not None and eprov.has(ticker):
+            try:
+                events = eprov.get_events(ticker, cik)
+            except Exception as exc:
+                ev_errors.append(ticker)
+                print(f"  [no-events] {ticker} (CIK {cik}): "
+                      f"{type(exc).__name__}: {exc}", file=sys.stderr)
         cards.append(score_company(facts, as_of, cfg, events=events))
+        if total > 1 and (i % 100 == 0 or i == total):
+            print(f"  …{i}/{total} screened "
+                  f"({len(skipped)} skipped, {len(ev_errors)} without events)",
+                  file=sys.stderr)
 
     write_sqlite(cards, cfg, args.db)
     write_json(cards, cfg, args.json)
     _print_table(cards, cfg)
     print(f"\nWrote {args.db} and {args.json}")
+    if skipped:
+        print(f"\n{len(skipped)} ticker(s) skipped (fetch/parse errors): "
+              f"{', '.join(skipped)}", file=sys.stderr)
+    if ev_errors:
+        print(f"{len(ev_errors)} ticker(s) scored without Tier-2 events "
+              f"(event fetch failed): {', '.join(ev_errors)}", file=sys.stderr)
     return 0
 
 
