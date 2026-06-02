@@ -1,0 +1,6 @@
+{
+  "ticker": "CENN", "cik": "0001707919",
+  "events": [
+    {"type": "MATERIAL_WEAKNESS", "filed": "2026-04-15", "form": "10-K", "period": "2025-12-31", "accession": "0001140361-26-014773", "detail": "ICFR not effective"}
+  ]
+}

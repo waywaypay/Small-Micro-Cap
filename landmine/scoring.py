@@ -3,18 +3,23 @@ from __future__ import annotations
 
 import datetime as dt
 from typing import Optional
+from typing import Optional
 
 from .config import Config
 from .data.facts import CompanyFacts
+from .events import EventSet
 from .models import Scorecard
 from .rules.registry import ALL_RULES
+from .rules_t2 import ALL_T2_RULES
 
 
-def score_company(facts: CompanyFacts, as_of: dt.date, cfg: Config) -> Scorecard:
+def score_company(facts: CompanyFacts, as_of: dt.date, cfg: Config,
+                  events: Optional[EventSet] = None) -> Scorecard:
     """Evaluate every enabled rule as-of ``as_of`` and roll up the results.
 
-    The point-in-time view is built once, here, so every rule sees the exact
-    same as-of snapshot — no rule can reach past ``as_of``.
+    The point-in-time views (facts and, if supplied, events) are built once,
+    here, so every rule — Tier 1 and Tier 2 — sees the exact same as-of snapshot
+    and no rule can reach past ``as_of``.
     """
     view = facts.as_of(as_of)
     card = Scorecard(ticker=facts.ticker, cik=facts.cik, as_of=as_of)
@@ -22,8 +27,14 @@ def score_company(facts: CompanyFacts, as_of: dt.date, cfg: Config) -> Scorecard
         rc = cfg.rule(rule.code)
         if not rc.enabled:
             continue
-        result = rule.evaluate(view, rc)
-        card.results.append(result)
+        card.results.append(rule.evaluate(view, rc))
+    if events is not None:
+        ev_view = events.as_of(as_of)
+        for rule in ALL_T2_RULES:
+            rc = cfg.rule(rule.code)
+            if not rc.enabled:
+                continue
+            card.results.append(rule.evaluate(ev_view, rc))
     return card
 
 

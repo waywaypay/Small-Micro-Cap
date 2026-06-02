@@ -1,0 +1,6 @@
+{
+  "ticker": "_CLIFFCO", "cik": "9999990",
+  "events": [
+    {"type": "GOING_CONCERN", "filed": "2026-05-10", "form": "10-Q", "period": "2026-03-31", "accession": "9999990-26-000001", "detail": "substantial doubt; senior notes mature within 12 months"}
+  ]
+}

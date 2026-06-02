@@ -1,0 +1,22 @@
+{
+  "ticker": "WKHS",
+  "cik": "0001425287",
+  "events": [
+    {"type": "GOING_CONCERN", "filed": "2026-03-31", "form": "10-K", "period": "2025-12-31", "accession": "0001628280-26-022417", "detail": "substantial doubt (PCAOB AS 2415)"},
+    {"type": "MATERIAL_WEAKNESS", "filed": "2026-03-31", "form": "10-K", "period": "2025-12-31", "accession": "0001628280-26-022417", "detail": "ICFR not effective"},
+    {"type": "LATE_FILING", "filed": "2025-08-14", "form": "NT 10-Q", "period": "2025-06-30", "accession": "0001213900-25-076829", "detail": "late filing notice"},
+    {"type": "LATE_FILING", "filed": "2024-11-14", "form": "NT 10-Q", "period": "2024-09-30", "accession": "0001213900-24-097761", "detail": "late filing notice"},
+    {"type": "LATE_FILING", "filed": "2024-08-13", "form": "NT 10-Q", "period": "2024-06-30", "accession": "0001213900-24-068401", "detail": "late filing notice"},
+    {"type": "LATE_FILING", "filed": "2024-05-16", "form": "NT 10-Q", "period": "2024-03-31", "accession": "0001213900-24-043972", "detail": "late filing notice"},
+    {"type": "OFFERING", "filed": "2025-02-12", "form": "424B5", "accession": "0001213900-25-012506", "detail": "shelf takedown (S-3)"},
+    {"type": "OFFERING", "filed": "2025-01-27", "form": "424B5", "accession": "0001213900-25-006715", "detail": "shelf takedown (S-3)"},
+    {"type": "OFFERING", "filed": "2024-12-16", "form": "424B5", "accession": "0001213900-24-109020", "detail": "shelf takedown (S-3)"},
+    {"type": "OFFERING", "filed": "2024-11-27", "form": "424B5", "accession": "0001213900-24-103450", "detail": "shelf takedown (S-3)"},
+    {"type": "OFFERING", "filed": "2024-10-16", "form": "424B5", "accession": "0001213900-24-087972", "detail": "shelf takedown (S-3)"},
+    {"type": "OFFERING", "filed": "2024-09-30", "form": "424B5", "accession": "0001213900-24-083441", "detail": "shelf takedown (S-3)"},
+    {"type": "OFFERING", "filed": "2024-08-23", "form": "424B5", "accession": "0001213900-24-072012", "detail": "shelf takedown (S-3)"},
+    {"type": "OFFERING", "filed": "2024-07-18", "form": "424B5", "accession": "0001213900-24-062308", "detail": "shelf takedown (S-3)"},
+    {"type": "OFFERING", "filed": "2024-05-29", "form": "424B5", "accession": "0001213900-24-047248", "detail": "shelf takedown (S-3)"},
+    {"type": "OFFERING", "filed": "2024-05-10", "form": "424B5", "accession": "0001213900-24-041462", "detail": "shelf takedown (S-3)"}
+  ]
+}

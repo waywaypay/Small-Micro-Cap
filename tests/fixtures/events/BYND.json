@@ -1,0 +1,6 @@
+{
+  "ticker": "BYND", "cik": "0001655210",
+  "events": [
+    {"type": "MATERIAL_WEAKNESS", "filed": "2026-04-09", "form": "10-K", "period": "2025-12-31", "accession": "0001655210-26-000022", "detail": "inventory valuation and complex transactions"}
+  ]
+}

@@ -1,9 +1,9 @@
 # Landmine Screen — Tier 1 (deterministic engine)
 
 A negative-selection filter that flags financially distressed micro/small-cap
-companies from **point-in-time SEC EDGAR XBRL facts**, before any stock-picking.
-This repo is the **Tier 1 deterministic backbone** — no LLM judgment anywhere in
-the engine.
+companies from **point-in-time SEC EDGAR data**, before any stock-picking. This
+repo is the **deterministic backbone** — Tier 1 (numeric XBRL rules) and Tier 2
+(filing-event detection), with no LLM judgment anywhere in the engine.
 
 ## Guarantees
 
@@ -53,6 +53,32 @@ Notes on rule mechanics:
 - **R5** is evaluated on the latest **annual** period (accruals are an
   annual-scale measure), which catches one-time non-cash gains — e.g. BYND's
   debt-exchange "profit" booked while operating cash flow was deeply negative.
+
+## Tier 2 — event detection
+
+Tier 2 flags *events* from filing metadata — still fully deterministic
+(structure/pattern matching on form types and dates, no LLM; that is Tier 3).
+Events carry their filing date, so the same `as_of` discipline applies, and each
+result rolls up into the **same auditable scorecard** as Tier 1 (rule codes
+prefixed `T2_`). Events are captured from the SEC MCP and frozen to JSON
+fixtures (`tests/fixtures/events/`); the production seam reads the EDGAR
+submissions / full-text APIs.
+
+| Code | Event | Source |
+|------|-------|--------|
+| T2_GOING_CONCERN | substantial-doubt opinion (PCAOB AS 2415) | 10-K audit language |
+| T2_MATERIAL_WEAKNESS | ICFR not effective | 10-K Item 9A |
+| T2_LATE_FILING | NT 10-K / NT 10-Q (can't file on time) | NT forms |
+| T2_DILUTION_EVENTS | cluster of shelf takedowns / 424B offerings | registration filings |
+
+**Why it matters — it closes the Tier-1 blind spot.** `_CLIFFCO` has clean
+trailing numerics (Tier 1 = 0 flags) but a going-concern opinion; **Tier 2
+catches it** (`test_tier2_closes_the_tier1_blind_spot`). On the real set, WKHS
+goes from one numeric flag to four — cash runway **plus** going-concern,
+material-weakness, and late-filing events (score 1.49 → 5.04). The serial-
+dilution rule is strictly point-in-time: WKHS's 2024 424B5 wave flags as-of
+2025-03-01 but has aged out by 2026-06-02. Tier 2 runs by default in
+`landmine run` for any ticker with an event fixture (disable with `--no-events`).
 
 ## Quick start
 
@@ -206,8 +232,10 @@ landmine/
     facts.py           Fact, CompanyFacts.as_of() -> AsOfView   (PIT choke point)
     mcp_parser.py      frozen SEC-MCP text -> Facts (incl. restatement vintages)
     provider.py        FixtureProvider (deterministic) | HttpCompanyFactsProvider (prod)
-  rules/               one module per rule + ordered registry
-  scoring.py           run rules as-of a date -> Scorecard
+  rules/               one Tier-1 module per rule + ordered registry
+  events.py            Tier-2 Event model, EventSet.as_of(), FixtureEventProvider
+  rules_t2.py          Tier-2 event rules (going concern, material weakness, ...)
+  scoring.py           run Tier-1 (+ Tier-2 if events given) as-of a date -> Scorecard
   persistence.py       SQLite + canonical JSON
   calibrate.py         precision/recall on a labeled set (tuning, no rule changes)
   dera.py              DERA bulk-dataset ingestion (sub.txt + num.txt -> Facts)
@@ -256,5 +284,8 @@ stands in for is the literal HTTP GET, which runs unchanged where egress to
 
 ## Out of scope (clean seams left for later)
 
-Tier 2 event detection, Tier 3 LLM language checks, the Skill wrapper, the
-universe builder, and portfolio construction.
+Tier 3 LLM language checks (the only non-deterministic layer), the Skill
+wrapper, the universe builder, and portfolio construction. Tier 2 event
+detection is now built (see above); Tier 2 currently covers going concern,
+material weakness, late filings, and offering clusters, with enum seams for
+restatement (8-K 4.02), delisting (3.01), and bankruptcy (1.03).

@@ -75,10 +75,15 @@ def cmd_run(args) -> int:
         return 2
 
     provider = _build_provider(args, cfg)
+    eprov = None
+    if not args.no_events:
+        from .events import FixtureEventProvider
+        eprov = FixtureEventProvider(args.events_dir)
     cards = []
     for ticker, cik in sorted(universe.items()):
         facts = provider.get_company_facts(ticker, cik)
-        cards.append(score_company(facts, as_of, cfg))
+        events = eprov.get_events(ticker, cik) if (eprov and eprov.has(ticker)) else None
+        cards.append(score_company(facts, as_of, cfg, events=events))
 
     write_sqlite(cards, cfg, args.db)
     write_json(cards, cfg, args.json)
@@ -194,6 +199,8 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--cache", default=os.path.join(_ROOT, "out", "companyfacts_cache"))
     r.add_argument("--db", default=os.path.join(_ROOT, "out", "landmine.sqlite"))
     r.add_argument("--json", default=os.path.join(_ROOT, "out", "scorecard.json"))
+    r.add_argument("--events-dir", default=os.path.join(_ROOT, "tests", "fixtures", "events"))
+    r.add_argument("--no-events", action="store_true", help="skip Tier 2 event rules")
     r.set_defaults(func=cmd_run)
 
     c = sub.add_parser("calibrate", help="measure precision/recall on a labeled set")

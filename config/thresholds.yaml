@@ -75,6 +75,32 @@ rules:
     severity_cap: 0.40
     severity_bands: [0.10, 0.20, 0.30, 0.40]
 
+  # --- Tier 2: deterministic event detection (rolls up with Tier 1) ----------
+  T2_GOING_CONCERN:
+    enabled: true
+    # a going-concern opinion is "current" for ~one annual cycle.
+    recency_days: 400
+    severity: CRITICAL
+    severity_score: 1.0
+  T2_MATERIAL_WEAKNESS:
+    enabled: true
+    recency_days: 400
+    severity: MEDIUM
+    severity_score: 0.5
+  T2_LATE_FILING:
+    enabled: true
+    # NT 10-K/10-Q within ~18 months is a high-precision distress signal.
+    window_days: 540
+    severity: HIGH
+    severity_score: 0.7
+  T2_DILUTION_EVENTS:
+    enabled: true
+    # flag a cluster of capital raises (shelf takedowns / 424B) in the window.
+    window_days: 365
+    min_count: 3
+    severity_cap: 7.0           # min_count + 7 offerings -> score 1.0
+    severity_bands: [0.0, 2.0, 4.0, 6.0]
+
 scoring:
   # weight applied to each rule's severity_score in the rollup total.
   weights:
@@ -83,3 +109,7 @@ scoring:
     R3_NEGATIVE_EQUITY: 1.5
     R4_LIQUIDITY: 1.0
     R5_EARNINGS_QUALITY: 1.0
+    T2_GOING_CONCERN: 2.0
+    T2_MATERIAL_WEAKNESS: 1.0
+    T2_LATE_FILING: 1.5
+    T2_DILUTION_EVENTS: 1.0
