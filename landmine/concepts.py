@@ -24,12 +24,13 @@ NET_INCOME = "NetIncomeLoss"
 EPS_BASIC = "EarningsPerShareBasic"
 OPERATING_CASH_FLOW = "OperatingCashFlow"
 SHARES_OUTSTANDING = "SharesOutstanding"
+PUBLIC_FLOAT = "EntityPublicFloat"   # dei cover-page market value of non-affiliate equity
 
 # Period type per concept: "instant" (balance-sheet point in time) vs
 # "duration" (flow over a reporting period). Drives how trailing windows work.
 INSTANT_CONCEPTS = {
     TOTAL_ASSETS, CURRENT_ASSETS, CASH, TOTAL_LIABILITIES,
-    CURRENT_LIABILITIES, STOCKHOLDERS_EQUITY, SHARES_OUTSTANDING,
+    CURRENT_LIABILITIES, STOCKHOLDERS_EQUITY, SHARES_OUTSTANDING, PUBLIC_FLOAT,
 }
 
 # --- MCP statement-label -> canonical concept -------------------------------
@@ -73,4 +74,6 @@ GAAP_ALIASES: dict[str, list[str]] = {
         "CommonStockSharesOutstanding",           # us-gaap, balance sheet
         "WeightedAverageNumberOfSharesOutstandingBasic",
     ],
+    # SEC-native size measure for the universe builder (dei cover page).
+    PUBLIC_FLOAT: ["EntityPublicFloat"],
 }

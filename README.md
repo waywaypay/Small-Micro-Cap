@@ -312,7 +312,8 @@ landmine/
   synthetic.py         deterministic synthetic-at-scale dataset for backtesting
   tier3.py             ADVISORY LLM language layer (quarantined, non-deterministic)
   filings.py           fetch flag-relevant filing sections (fixture | EDGAR) for Tier 3
-  cli.py               `python -m landmine run | calibrate | backtest | language | language-batch`
+  universe.py          build the small/mid-cap ticker->CIK list (company_tickers + size cut)
+  cli.py               `python -m landmine run | calibrate | backtest | language | language-batch | universe`
 config/                thresholds.yaml, universe.yaml, labels.yaml
 tests/                 PIT, determinism, rules, parser  (+ frozen fixtures/raw/)
 ```
@@ -354,10 +355,30 @@ every flag cites a real **accession number** — the only thing the local cache
 stands in for is the literal HTTP GET, which runs unchanged where egress to
 `data.sec.gov` is allowed.
 
+## Universe builder
+
+```bash
+landmine universe --source sec --size-source public-float \
+  --min-cap 50e6 --max-cap 10e9 --out config/universe.yaml
+```
+
+Pulls the full filer list from SEC `company_tickers.json` (ticker/CIK/name) and
+applies a size cut. SEC's ticker file has no market cap, so the default size
+measure is **`dei:EntityPublicFloat`** (filed on every 10-K cover, point-in-time,
+no price feed needed); `StaticSizeProvider` plugs in an external market-cap feed
+if you have one. Writes a `universe.yaml` the rest of the CLI consumes. Network
+fetch is injectable and the parse/cut logic is unit-tested offline; the live
+fetch runs where SEC egress is allowed.
+
+Full chain: `universe` → `run` (deterministic T1+T2) → `language-batch
+--from-scorecard` (Tier 3 only on flagged names).
+
 ## Out of scope (clean seams left for later)
 
-The **Skill wrapper**, the **universe builder**, and **portfolio construction**.
-All three tiers are now built: Tier 1 (5 numeric rules), Tier 2 (8 event rules
-incl. going concern, material weakness, restatement, auditor change, delisting,
-bankruptcy, late filings, offering clusters), and Tier 3 (advisory LLM language
-signals, quarantined from the deterministic score).
+The **Skill wrapper** and **portfolio construction** — the surrounding system,
+not the screen. The screen itself is complete: a universe builder, all three
+tiers (Tier 1 = 5 numeric rules; Tier 2 = 8 event rules incl. going concern,
+material weakness, restatement, auditor change, delisting, bankruptcy, late
+filings, offering clusters; Tier 3 = advisory LLM language signals, quarantined),
+three ingestion paths (MCP / companyfacts / DERA), and a calibration + bulk
+backtest harness.

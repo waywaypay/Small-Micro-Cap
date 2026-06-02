@@ -298,6 +298,39 @@ def cmd_language_batch(args) -> int:
 
 
 
+def cmd_universe(args) -> int:
+    import datetime as _dt
+    from .universe import (PublicFloatSizeProvider, StaticSizeProvider,
+                          build_universe, load_company_tickers, write_universe_yaml)
+
+    if args.source == "fixture":
+        path = args.company_tickers
+        records = load_company_tickers(fetch=lambda _u: open(path, encoding="utf-8").read())
+    else:
+        records = load_company_tickers(user_agent=args.user_agent)
+
+    if args.size_source == "static":
+        with open(args.sizes, "r", encoding="utf-8") as fh:
+            raw = {k: v for k, v in json.load(fh).items() if not k.startswith("_")}
+        size = StaticSizeProvider(raw)
+    else:  # public-float via companyfacts
+        size = PublicFloatSizeProvider(
+            HttpCompanyFactsProvider(user_agent=args.user_agent,
+                                     cache_dir=args.cache or None),
+            _dt.date.fromisoformat(args.as_of))
+
+    universe = build_universe(records, size, args.min_cap, args.max_cap)
+    note = (f"Generated {args.as_of}: {len(universe)}/{len(records)} names in "
+            f"[{args.min_cap:,.0f}, {args.max_cap:,.0f}] USD "
+            f"({args.size_source}).")
+    print(note)
+    for t in sorted(universe):
+        print(f"  {t}  {universe[t]}")
+    write_universe_yaml(universe, args.out, note=note)
+    print(f"Wrote {args.out}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="landmine", description=__doc__)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -387,6 +420,26 @@ def build_parser() -> argparse.ArgumentParser:
     lb.add_argument("--tier3-cache", default=os.path.join(_ROOT, "tests", "fixtures", "tier3"))
     lb.add_argument("--json", default="")
     lb.set_defaults(func=cmd_language_batch)
+
+    u = sub.add_parser("universe",
+                       help="build the small/mid-cap ticker->CIK list (size cut)")
+    u.add_argument("--source", choices=["fixture", "sec"], default="fixture",
+                   help="sec = live company_tickers.json (needs egress)")
+    u.add_argument("--size-source", choices=["static", "public-float"],
+                   default="static",
+                   help="public-float = dei:EntityPublicFloat via companyfacts")
+    u.add_argument("--min-cap", type=float, default=50e6)
+    u.add_argument("--max-cap", type=float, default=10e9)
+    u.add_argument("--as-of", default="2026-06-02")
+    u.add_argument("--user-agent", default="Deerpark Research max@deerpark.io")
+    u.add_argument("--company-tickers",
+                   default=os.path.join(_ROOT, "tests", "fixtures", "universe",
+                                        "company_tickers.json"))
+    u.add_argument("--sizes", default=os.path.join(_ROOT, "tests", "fixtures",
+                                                   "universe", "sizes.json"))
+    u.add_argument("--cache", default=os.path.join(_ROOT, "out", "companyfacts_cache"))
+    u.add_argument("--out", default=os.path.join(_ROOT, "out", "universe.generated.yaml"))
+    u.set_defaults(func=cmd_universe)
     return p
 
 
