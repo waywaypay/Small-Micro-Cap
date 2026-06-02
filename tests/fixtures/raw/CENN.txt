@@ -1,0 +1,107 @@
+================================================================================
+Balance Sheet — CENN
+Data source: SEC EDGAR XBRL (machine-tagged financial data)
+================================================================================
+
+
+Total Assets
+----------------------------------------
+  2026-03-31 [10-Q]: $73.25M (Filed: 2026-05-14)
+  2025-12-31 [10-Q]: $74.43M (Filed: 2026-05-14)
+  2025-09-30 [10-Q]: $112.71M (Filed: 2025-11-12)
+  2025-06-30 [10-Q]: $124.40M (Filed: 2025-08-12)
+  2025-03-31 [10-Q]: $129.34M (Filed: 2025-05-15)
+  2024-09-30 [10-Q]: $159.84M (Filed: 2024-11-12)
+  2024-06-30 [10-Q]: $167.75M (Filed: 2024-08-13)
+
+Current Assets
+----------------------------------------
+  2026-03-31 [10-Q]: $44.95M (Filed: 2026-05-14)
+  2025-12-31 [10-Q]: $45.63M (Filed: 2026-05-14)
+  2025-09-30 [10-Q]: $52.29M (Filed: 2025-11-12)
+  2025-06-30 [10-Q]: $58.60M (Filed: 2025-08-12)
+  2025-03-31 [10-Q]: $62.94M (Filed: 2025-05-15)
+  2024-09-30 [10-Q]: $84.78M (Filed: 2024-11-12)
+  2024-06-30 [10-Q]: $91.59M (Filed: 2024-08-13)
+
+Cash and Cash Equivalents
+----------------------------------------
+  2026-03-31 [10-Q]: $3.61M (Filed: 2026-05-14)
+  2025-12-31 [10-Q]: $4.48M (Filed: 2026-05-14)
+  2025-09-30 [10-Q]: $4.44M (Filed: 2025-11-12)
+  2025-06-30 [10-Q]: $5.99M (Filed: 2025-08-12)
+  2025-03-31 [10-Q]: $8.54M (Source: 2026-05-14 (comparative, may reflect restatements))
+  2024-09-30 [10-Q]: $22.36M (Source: 2025-11-12 (comparative, may reflect restatements))
+  2024-06-30 [10-Q]: $16.01M (Source: 2025-08-12 (comparative, may reflect restatements))
+  ⚠ RESTATED: 2023-12-31 was originally $29.38M (filed 2024-04-01), restated to $28.79M (filed 2025-04-01)
+  ⚠ RESTATED: 2024-06-30 was originally $16.23M (filed 2024-08-13), restated to $16.01M (filed 2025-08-12)
+  ⚠ RESTATED: 2024-09-30 was originally $21.82M (filed 2024-11-12), restated to $22.36M (filed 2025-11-12)
+
+Total Liabilities
+----------------------------------------
+  2026-03-31 [10-Q]: $35.62M (Filed: 2026-05-14)
+  2025-12-31 [10-Q]: $34.05M (Filed: 2026-05-14)
+  2025-09-30 [10-Q]: $36.57M (Filed: 2025-11-12)
+  2025-06-30 [10-Q]: $44.65M (Filed: 2025-08-12)
+  2025-03-31 [10-Q]: $55.91M (Filed: 2025-05-15)
+  2024-09-30 [10-Q]: $62.98M (Filed: 2024-11-12)
+  2024-06-30 [10-Q]: $63.75M (Filed: 2024-08-13)
+
+Current Liabilities
+----------------------------------------
+  2026-03-31 [10-Q]: $26.58M (Filed: 2026-05-14)
+  2025-12-31 [10-Q]: $26.66M (Filed: 2026-05-14)
+  2025-09-30 [10-Q]: $27.35M (Filed: 2025-11-12)
+  2025-06-30 [10-Q]: $32.62M (Filed: 2025-08-12)
+  2025-03-31 [10-Q]: $31.01M (Filed: 2025-05-15)
+  2024-09-30 [10-Q]: $31.44M (Filed: 2024-11-12)
+  2024-06-30 [10-Q]: $30.94M (Filed: 2024-08-13)
+
+Shareholders Equity
+----------------------------------------
+  2026-03-31 [10-Q]: $37.55M (Filed: 2026-05-14)
+  2025-12-31 [10-Q]: $40.28M (Filed: 2026-05-14)
+  2025-09-30 [10-Q]: $76.03M (Filed: 2025-11-12)
+  2025-06-30 [10-Q]: $79.63M (Filed: 2025-08-12)
+  2025-03-31 [10-Q]: $73.43M (Source: 2026-05-14 (comparative, may reflect restatements))
+  2024-09-30 [10-Q]: $96.86M (Source: 2025-11-12 (comparative, may reflect restatements))
+  2024-06-30 [10-Q]: $104.01M (Source: 2025-08-12 (comparative, may reflect restatements))
+
+================================================================================
+Cash Flow Statement — CENN
+Data source: SEC EDGAR XBRL (machine-tagged financial data)
+================================================================================
+
+
+Operating Cash Flow
+----------------------------------------
+  2026-03-31 [Quarterly, 10-Q]: $-2.81M (Filed: 2026-05-14)
+  2025-12-31 [Annual, 10-K]: $-12.62M (Filed: 2026-04-15)
+  2025-03-31 [Quarterly, 10-Q]: $-4.95M (Source: 2026-05-14 (comparative, may reflect restatements))
+  2024-12-31 [Annual, 10-K]: $-21.36M (Source: 2026-04-15 (comparative, may reflect restatements))
+
+================================================================================
+Income Statement — CENN
+Data source: SEC EDGAR XBRL (machine-tagged financial data)
+================================================================================
+
+
+Net Income
+----------------------------------------
+  2026-03-31 [Quarterly, 10-Q]: $-3.91M (Filed: 2026-05-14)
+  2025-12-31 [Annual, 10-K]: $-72.98M (Filed: 2026-04-15)
+  2025-09-30 [Quarterly, 10-Q]: $-6.71M (Filed: 2025-11-12)
+  2025-03-31 [Quarterly, 10-Q]: $-5.65M (Source: 2026-05-14 (comparative, may reflect restatements))
+  2024-09-30 [Quarterly, 10-Q]: $-8.97M (Source: 2025-11-12 (comparative, may reflect restatements))
+  2024-06-30 [Quarterly, 10-Q]: $-9.18M (Filed: 2024-08-13)
+
+EPS Basic
+----------------------------------------
+  2026-03-31 [Quarterly, 10-Q]: $-2.66 (Filed: 2026-05-14)
+  2025-12-31 [Annual, 10-K]: $-87.21 (Filed: 2026-04-15)
+  2025-09-30 [Quarterly, 10-Q]: $-0.14 (Filed: 2025-11-12)
+  2025-03-31 [Quarterly, 10-Q]: $-10.99 (Source: 2026-05-14 (comparative, may reflect restatements))
+  2024-09-30 [Quarterly, 10-Q]: $-0.29 (Source: 2025-11-12 (comparative, may reflect restatements))
+  2024-06-30 [Quarterly, 10-Q]: $-0.30 (Filed: 2024-08-13)
+  ⚠ RESTATED: 2024-12-31 was originally $-1.45 (filed 2025-04-01), restated to $-87.28 (filed 2026-04-15)
+  ⚠ RESTATED: 2025-03-31 was originally $-0.18 (filed 2025-05-15), restated to $-10.99 (filed 2026-05-14)

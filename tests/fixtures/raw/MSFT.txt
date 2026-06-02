@@ -1,0 +1,98 @@
+================================================================================
+Balance Sheet — MSFT
+Data source: SEC EDGAR XBRL (machine-tagged financial data)
+================================================================================
+
+
+Total Assets
+----------------------------------------
+  2026-03-31 [10-Q]: $694.23B (Filed: 2026-04-29)
+  2025-12-31 [10-Q]: $665.30B (Filed: 2026-01-28)
+  2025-09-30 [10-Q]: $636.35B (Filed: 2025-10-29)
+  2025-06-30 [10-Q]: $619.00B (Source: 2026-04-29 (comparative, may reflect restatements))
+  2025-03-31 [10-Q]: $562.62B (Filed: 2025-04-30)
+  2024-12-31 [10-Q]: $533.90B (Filed: 2025-01-29)
+
+Current Assets
+----------------------------------------
+  2026-03-31 [10-Q]: $175.33B (Filed: 2026-04-29)
+  2025-12-31 [10-Q]: $180.19B (Filed: 2026-01-28)
+  2025-09-30 [10-Q]: $189.07B (Filed: 2025-10-29)
+  2025-06-30 [10-Q]: $191.13B (Source: 2026-04-29 (comparative, may reflect restatements))
+  2025-03-31 [10-Q]: $156.64B (Filed: 2025-04-30)
+  2024-12-31 [10-Q]: $147.08B (Filed: 2025-01-29)
+
+Cash and Cash Equivalents
+----------------------------------------
+  2026-03-31 [10-Q]: $32.10B (Filed: 2026-04-29)
+  2025-12-31 [10-Q]: $24.30B (Filed: 2026-01-28)
+  2025-09-30 [10-Q]: $28.85B (Filed: 2025-10-29)
+  2025-06-30 [10-Q]: $30.24B (Source: 2026-04-29 (comparative, may reflect restatements))
+  2025-03-31 [10-Q]: $28.83B (Filed: 2025-04-30)
+  2024-12-31 [10-Q]: $17.48B (Filed: 2025-01-29)
+
+Total Liabilities
+----------------------------------------
+  2026-03-31 [10-Q]: $279.86B (Filed: 2026-04-29)
+  2025-12-31 [10-Q]: $274.43B (Filed: 2026-01-28)
+  2025-09-30 [10-Q]: $273.27B (Filed: 2025-10-29)
+  2025-06-30 [10-Q]: $275.52B (Source: 2026-04-29 (comparative, may reflect restatements))
+  2025-03-31 [10-Q]: $240.73B (Filed: 2025-04-30)
+  2024-12-31 [10-Q]: $231.20B (Filed: 2025-01-29)
+
+Current Liabilities
+----------------------------------------
+  2026-03-31 [10-Q]: $136.66B (Filed: 2026-04-29)
+  2025-12-31 [10-Q]: $130.00B (Filed: 2026-01-28)
+  2025-09-30 [10-Q]: $135.00B (Filed: 2025-10-29)
+  2025-06-30 [10-Q]: $141.22B (Source: 2026-04-29 (comparative, may reflect restatements))
+  2025-03-31 [10-Q]: $114.21B (Filed: 2025-04-30)
+  2024-12-31 [10-Q]: $108.88B (Filed: 2025-01-29)
+
+Shareholders Equity
+----------------------------------------
+  2026-03-31 [10-Q]: $414.37B (Filed: 2026-04-29)
+  2025-12-31 [10-Q]: $390.88B (Filed: 2026-01-28)
+  2025-09-30 [10-Q]: $363.08B (Filed: 2025-10-29)
+  2025-06-30 [10-Q]: $343.48B (Source: 2026-04-29 (comparative, may reflect restatements))
+  2025-03-31 [10-Q]: $321.89B (Source: 2026-04-29 (comparative, may reflect restatements))
+  2024-12-31 [10-Q]: $302.69B (Source: 2026-01-28 (comparative, may reflect restatements))
+
+================================================================================
+Cash Flow Statement — MSFT
+Data source: SEC EDGAR XBRL (machine-tagged financial data)
+================================================================================
+
+
+Operating Cash Flow
+----------------------------------------
+  2026-03-31 [Quarterly, 10-Q]: $46.68B (Filed: 2026-04-29)
+  2025-12-31 [Quarterly, 10-Q]: $35.76B (Filed: 2026-01-28)
+  2025-09-30 [Quarterly, 10-Q]: $45.06B (Filed: 2025-10-29)
+  2025-06-30 [Annual, 10-K]: $136.16B (Filed: 2025-07-30)
+  2025-03-31 [Quarterly, 10-Q]: $37.04B (Source: 2026-04-29 (comparative, may reflect restatements))
+  2024-12-31 [Quarterly, 10-Q]: $22.29B (Source: 2026-01-28 (comparative, may reflect restatements))
+
+================================================================================
+Income Statement — MSFT
+Data source: SEC EDGAR XBRL (machine-tagged financial data)
+================================================================================
+
+
+Net Income
+----------------------------------------
+  2026-03-31 [Quarterly, 10-Q]: $31.78B (Filed: 2026-04-29)
+  2025-12-31 [Quarterly, 10-Q]: $38.46B (Filed: 2026-01-28)
+  2025-09-30 [Quarterly, 10-Q]: $27.75B (Filed: 2025-10-29)
+  2025-06-30 [Annual, 10-K]: $101.83B (Filed: 2025-07-30)
+  2025-03-31 [Quarterly, 10-Q]: $25.82B (Source: 2026-04-29 (comparative, may reflect restatements))
+  2024-12-31 [Quarterly, 10-Q]: $24.11B (Source: 2026-01-28 (comparative, may reflect restatements))
+
+EPS Basic
+----------------------------------------
+  2026-03-31 [Quarterly, 10-Q]: $4.28 (Filed: 2026-04-29)
+  2025-12-31 [Quarterly, 10-Q]: $5.18 (Filed: 2026-01-28)
+  2025-09-30 [Quarterly, 10-Q]: $3.73 (Filed: 2025-10-29)
+  2025-06-30 [Annual, 10-K]: $13.70 (Filed: 2025-07-30)
+  2025-03-31 [Quarterly, 10-Q]: $3.47 (Source: 2026-04-29 (comparative, may reflect restatements))
+  2024-12-31 [Quarterly, 10-Q]: $3.24 (Source: 2026-01-28 (comparative, may reflect restatements))

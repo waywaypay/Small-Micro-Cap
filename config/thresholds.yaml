@@ -1,0 +1,63 @@
+# Tier 1 landmine-screen thresholds. All knobs live here so the engine itself
+# stays free of magic numbers. Starter values per spec — calibrate freely.
+#
+# severity_bands map a rule's normalized "exceedance" (how far past the
+# threshold, 0..inf) onto a severity label. Bands are [LOW, MEDIUM, HIGH,
+# CRITICAL] lower-bounds on exceedance; severity_score is min(1, exceedance/cap).
+
+data_source:
+  # Declared SEC User-Agent for the production companyfacts path (unused on the
+  # frozen-fixture path). SEC fair-access policy requires a contact email.
+  user_agent: "Deerpark Research max@deerpark.io"
+
+rules:
+  R1_DILUTION:
+    enabled: true
+    # shares-outstanding YoY growth above this fraction flags dilution.
+    yoy_growth_threshold: 0.25
+    # ignore |EPS| below this when deriving shares = NetIncome / EPS (MCP path);
+    # tiny EPS makes the derived share count unstable.
+    min_abs_eps: 0.05
+    # period_end spacing (days) that counts as "one year ago".
+    yoy_window_days: [300, 430]
+    severity_cap: 1.00          # +100% YoY -> score 1.0
+    severity_bands: [0.25, 0.50, 1.00, 2.00]
+
+  R2_CASH_RUNWAY:
+    enabled: true
+    # flag when runway < this many quarters AND operating cash flow < 0.
+    min_runway_quarters: 4.0
+    severity_cap: 4.0           # 0 quarters of runway -> score 1.0
+    severity_bands: [0.0, 1.0, 2.0, 3.0]   # quarters of runway SHORTFALL
+
+  R3_NEGATIVE_EQUITY:
+    enabled: true
+    # flag when total stockholders' equity < this (USD).
+    equity_floor: 0.0
+    severity_cap: 1.0           # equity == -100% of |assets-scale| -> 1.0
+    # bands on (-equity / total_assets); deeper negative = worse.
+    severity_bands: [0.0, 0.10, 0.25, 0.50]
+
+  R4_LIQUIDITY:
+    enabled: true
+    # flag when current ratio (current assets / current liabilities) < this.
+    min_current_ratio: 1.0
+    severity_cap: 1.0           # ratio 0 -> score 1.0
+    severity_bands: [0.0, 0.15, 0.35, 0.60]  # bands on (threshold - ratio)
+
+  R5_EARNINGS_QUALITY:
+    enabled: true
+    # flag when accruals ratio (NetIncome - OperatingCashFlow) / TotalAssets
+    # exceeds this (aggressive, cash-poor earnings).
+    max_accruals_ratio: 0.10
+    severity_cap: 0.40
+    severity_bands: [0.10, 0.20, 0.30, 0.40]
+
+scoring:
+  # weight applied to each rule's severity_score in the rollup total.
+  weights:
+    R1_DILUTION: 1.0
+    R2_CASH_RUNWAY: 1.5
+    R3_NEGATIVE_EQUITY: 1.5
+    R4_LIQUIDITY: 1.0
+    R5_EARNINGS_QUALITY: 1.0

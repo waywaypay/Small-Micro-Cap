@@ -1,0 +1,14 @@
+# Test universe for the Tier 1 vertical slice. ticker -> CIK (CIK is the
+# permanent EDGAR identifier; tickers change on rename/delisting). Swap freely.
+#
+# Distress controls (flags expected to fire):
+#   WKHS  Workhorse Group   - going concern, material weakness, <1Q cash runway
+#   CENN  Cenntro Inc.      - material weakness, sub-2Q runway, heavy dilution
+# Healthy controls (expected to pass):
+#   AAPL  Apple Inc.
+#   MSFT  Microsoft Corp.
+universe:
+  WKHS: "0001425287"
+  CENN: "0001707919"
+  AAPL: "0000320193"
+  MSFT: "0000789019"

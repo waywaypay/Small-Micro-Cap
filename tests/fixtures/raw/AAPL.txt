@@ -1,0 +1,96 @@
+================================================================================
+Balance Sheet — AAPL
+Data source: SEC EDGAR XBRL (machine-tagged financial data)
+================================================================================
+
+
+Total Assets
+----------------------------------------
+  2026-03-28 [10-Q]: $371.08B (Filed: 2026-05-01)
+  2025-12-27 [10-Q]: $379.30B (Filed: 2026-01-30)
+  2025-09-27 [10-Q]: $359.24B (Source: 2026-05-01 (comparative, may reflect restatements))
+  2025-06-28 [10-Q]: $331.50B (Filed: 2025-08-01)
+  2025-03-29 [10-Q]: $331.23B (Filed: 2025-05-02)
+  2024-12-28 [10-Q]: $344.08B (Filed: 2025-01-31)
+
+Current Assets
+----------------------------------------
+  2026-03-28 [10-Q]: $144.11B (Filed: 2026-05-01)
+  2025-12-27 [10-Q]: $158.10B (Filed: 2026-01-30)
+  2025-09-27 [10-Q]: $147.96B (Source: 2026-05-01 (comparative, may reflect restatements))
+  2025-06-28 [10-Q]: $122.49B (Filed: 2025-08-01)
+  2025-03-29 [10-Q]: $118.67B (Filed: 2025-05-02)
+  2024-12-28 [10-Q]: $133.24B (Filed: 2025-01-31)
+
+Cash and Cash Equivalents
+----------------------------------------
+  2026-03-28 [10-Q]: $45.57B (Filed: 2026-05-01)
+  2025-12-27 [10-Q]: $45.32B (Filed: 2026-01-30)
+  2025-09-27 [10-Q]: $35.93B (Source: 2026-05-01 (comparative, may reflect restatements))
+  2025-06-28 [10-Q]: $36.27B (Filed: 2025-08-01)
+  2025-03-29 [10-Q]: $28.16B (Filed: 2025-05-02)
+  2024-12-28 [10-Q]: $30.30B (Filed: 2025-01-31)
+
+Total Liabilities
+----------------------------------------
+  2026-03-28 [10-Q]: $264.59B (Filed: 2026-05-01)
+  2025-12-27 [10-Q]: $291.11B (Filed: 2026-01-30)
+  2025-09-27 [10-Q]: $285.51B (Source: 2026-05-01 (comparative, may reflect restatements))
+  2025-06-28 [10-Q]: $265.67B (Filed: 2025-08-01)
+  2025-03-29 [10-Q]: $264.44B (Filed: 2025-05-02)
+  2024-12-28 [10-Q]: $277.33B (Filed: 2025-01-31)
+
+Current Liabilities
+----------------------------------------
+  2026-03-28 [10-Q]: $134.64B (Filed: 2026-05-01)
+  2025-12-27 [10-Q]: $162.37B (Filed: 2026-01-30)
+  2025-09-27 [10-Q]: $165.63B (Source: 2026-05-01 (comparative, may reflect restatements))
+  2025-06-28 [10-Q]: $141.12B (Filed: 2025-08-01)
+  2025-03-29 [10-Q]: $144.57B (Filed: 2025-05-02)
+  2024-12-28 [10-Q]: $144.37B (Filed: 2025-01-31)
+
+Shareholders Equity
+----------------------------------------
+  2026-03-28 [10-Q]: $106.49B (Filed: 2026-05-01)
+  2025-12-27 [10-Q]: $88.19B (Filed: 2026-05-01)
+  2025-09-27 [10-Q]: $73.73B (Source: 2026-05-01 (comparative, may reflect restatements))
+  2025-06-28 [10-Q]: $65.83B (Filed: 2025-08-01)
+  2025-03-29 [10-Q]: $66.80B (Source: 2026-05-01 (comparative, may reflect restatements))
+  2024-12-28 [10-Q]: $66.76B (Source: 2026-05-01 (comparative, may reflect restatements))
+
+================================================================================
+Cash Flow Statement — AAPL
+Data source: SEC EDGAR XBRL (machine-tagged financial data)
+================================================================================
+
+
+Operating Cash Flow
+----------------------------------------
+  2025-12-27 [Quarterly, 10-Q]: $53.92B (Filed: 2026-01-30)
+  2025-09-27 [Annual, 10-K]: $111.48B (Filed: 2025-10-31)
+  2024-12-28 [Quarterly, 10-Q]: $29.93B (Source: 2026-01-30 (comparative, may reflect restatements))
+  2024-09-28 [Annual, 10-K]: $118.25B (Source: 2025-10-31 (comparative, may reflect restatements))
+
+================================================================================
+Income Statement — AAPL
+Data source: SEC EDGAR XBRL (machine-tagged financial data)
+================================================================================
+
+
+Net Income
+----------------------------------------
+  2026-03-28 [Quarterly, 10-Q]: $29.58B (Filed: 2026-05-01)
+  2025-12-27 [Quarterly, 10-Q]: $42.10B (Filed: 2026-01-30)
+  2025-09-27 [Annual, 10-K]: $112.01B (Filed: 2025-10-31)
+  2025-06-28 [Quarterly, 10-Q]: $23.43B (Filed: 2025-08-01)
+  2025-03-29 [Quarterly, 10-Q]: $24.78B (Source: 2026-05-01 (comparative, may reflect restatements))
+  2024-12-28 [Quarterly, 10-Q]: $36.33B (Source: 2026-01-30 (comparative, may reflect restatements))
+
+EPS Basic
+----------------------------------------
+  2026-03-28 [Quarterly, 10-Q]: $2.02 (Filed: 2026-05-01)
+  2025-12-27 [Quarterly, 10-Q]: $2.85 (Filed: 2026-01-30)
+  2025-09-27 [Annual, 10-K]: $7.49 (Filed: 2025-10-31)
+  2025-06-28 [Quarterly, 10-Q]: $1.57 (Filed: 2025-08-01)
+  2025-03-29 [Quarterly, 10-Q]: $1.65 (Source: 2026-05-01 (comparative, may reflect restatements))
+  2024-12-28 [Quarterly, 10-Q]: $2.41 (Source: 2026-01-30 (comparative, may reflect restatements))

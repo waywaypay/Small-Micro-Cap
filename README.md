@@ -1,0 +1,105 @@
+# Landmine Screen — Tier 1 (deterministic engine)
+
+A negative-selection filter that flags financially distressed micro/small-cap
+companies from **point-in-time SEC EDGAR XBRL facts**, before any stock-picking.
+This repo is the **Tier 1 deterministic backbone** — no LLM judgment anywhere in
+the engine.
+
+## Guarantees
+
+- **Deterministic & reproducible.** Same inputs + same as-of date → byte-identical
+  output (`tests/test_determinism.py`).
+- **Point-in-time correct.** Every fact carries the `filed` date it was first
+  publicly disclosed. `CompanyFacts.as_of(date)` is the single choke point that
+  drops anything filed after the as-of date and, for each (concept, period),
+  keeps the latest *vintage* visible then — so restatements are respected
+  without look-ahead (`tests/test_pit.py`).
+- **Auditable.** Every flag carries a reason code, severity, the raw values that
+  triggered it, the configured threshold, and a citation (concept, period_end,
+  filed date, form, accession\*, source).
+
+\* Accession numbers are populated on the production companyfacts path; the SEC
+MCP ingestion path does not expose them (see *Data sources*).
+
+## Tier 1 rules (config-driven thresholds — `config/thresholds.yaml`)
+
+| Code | Rule | Fires when |
+|------|------|-----------|
+| R1_DILUTION | Dilution | shares-outstanding YoY growth > 25% |
+| R2_CASH_RUNWAY | Cash runway | cash ÷ quarterly operating burn < 4 quarters **and** operating cash flow < 0 |
+| R3_NEGATIVE_EQUITY | Negative equity | total stockholders' equity < 0 |
+| R4_LIQUIDITY | Liquidity stress | current ratio < 1.0 |
+| R5_EARNINGS_QUALITY | Earnings quality | (net income − operating cash flow) ÷ total assets > threshold |
+
+A missing input is **`INSUFFICIENT_DATA`**, never a silent pass.
+
+## Quick start
+
+```bash
+pip install -e .            # or: pip install pyyaml pytest
+python -m landmine run --as-of 2026-06-02
+python -m landmine run --as-of 2025-06-01 --tickers WKHS,CENN   # historical PIT run
+pytest -q
+```
+
+Outputs land in `out/`: a SQLite DB (`findings` row per ticker×as_of×rule, plus a
+per-ticker `rollup`) and a canonical `scorecard.json` (the reproducibility
+artifact).
+
+### Example (as-of 2026-06-02, starter thresholds)
+
+```
+TICKER  FLAGS  MAXSEV    SCORE   FLAGGED RULES
+CENN    2      HIGH      2.02    R1_DILUTION, R2_CASH_RUNWAY
+WKHS    1      CRITICAL  1.49    R2_CASH_RUNWAY
+AAPL    0      NONE      0.00
+MSFT    0      NONE      0.00
+```
+
+Two known-distress names fire (Workhorse: <1-quarter runway; Cenntro: short
+runway + heavy post-split dilution); two healthy controls pass cleanly.
+
+## Architecture
+
+```
+landmine/
+  config.py            YAML thresholds + severity banding
+  concepts.py          canonical concepts; MCP-label and us-gaap/dei aliases
+  models.py            Citation, RuleResult, Scorecard, Status, Severity
+  data/
+    facts.py           Fact, CompanyFacts.as_of() -> AsOfView   (PIT choke point)
+    mcp_parser.py      frozen SEC-MCP text -> Facts (incl. restatement vintages)
+    provider.py        FixtureProvider (deterministic) | HttpCompanyFactsProvider (prod)
+  rules/               one module per rule + ordered registry
+  scoring.py           run rules as-of a date -> Scorecard
+  persistence.py       SQLite + canonical JSON
+  cli.py               `python -m landmine run`
+config/                thresholds.yaml, universe.yaml (ticker -> CIK)
+tests/                 PIT, determinism, rules, parser  (+ frozen fixtures/raw/)
+```
+
+Clean seams: data access / rule engine / scoring / persistence are independent,
+and the data source is a `FactsProvider` Protocol so swapping sources never
+touches rule logic.
+
+## Data sources
+
+Canonical PIT source is SEC EDGAR XBRL **companyfacts**
+(`data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json`), where each fact's `filed`
+date is the as-of stamp and `accn` is the citation. `HttpCompanyFactsProvider`
+implements this path (declared User-Agent + fair-access throttle + local cache).
+
+In environments where `data.sec.gov` is unreachable (e.g. this sandbox's egress
+allowlist), facts are sourced from the **SEC EDGAR MCP server** and *frozen to
+fixtures* (`tests/fixtures/raw/<TICKER>.txt`); the engine reads only those
+frozen files, never calling the MCP live, which preserves determinism. The MCP
+path carries `filed` dates and restatement vintages (full PIT) but **not**
+accession numbers, and derives shares-outstanding as `NetIncome / EPS-basic`
+(split-clean, weighted-average) since the MCP exposes no structured share count.
+The production companyfacts path uses `dei:EntityCommonStockSharesOutstanding`
+directly.
+
+## Out of scope (clean seams left for later)
+
+Tier 2 event detection, Tier 3 LLM language checks, the Skill wrapper, the
+universe builder, and portfolio construction.
