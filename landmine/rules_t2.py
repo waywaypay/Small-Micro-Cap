@@ -77,6 +77,30 @@ class LateFilingRule(_BinaryEventRule):
     reason_flag = "T2_LATE_FILING"
 
 
+class RestatementRule(_BinaryEventRule):
+    code = "T2_RESTATEMENT"           # 8-K Item 4.02 non-reliance
+    etype = EventType.RESTATEMENT
+    reason_flag = "T2_RESTATEMENT"
+
+
+class AuditorChangeRule(_BinaryEventRule):
+    code = "T2_AUDITOR_CHANGE"        # 8-K Item 4.01
+    etype = EventType.AUDITOR_CHANGE
+    reason_flag = "T2_AUDITOR_CHANGE"
+
+
+class DelistingRule(_BinaryEventRule):
+    code = "T2_DELISTING"             # 8-K Item 3.01
+    etype = EventType.DELISTING
+    reason_flag = "T2_DELISTING"
+
+
+class BankruptcyRule(_BinaryEventRule):
+    code = "T2_BANKRUPTCY"            # 8-K Item 1.03
+    etype = EventType.BANKRUPTCY
+    reason_flag = "T2_BANKRUPTCY"
+
+
 class DilutionEventsRule:
     """Flag a cluster of capital-raise events (shelf takedowns / offerings).
 
@@ -107,6 +131,10 @@ class DilutionEventsRule:
 ALL_T2_RULES = [
     GoingConcernRule(),
     MaterialWeaknessRule(),
+    RestatementRule(),
+    AuditorChangeRule(),
+    DelistingRule(),
+    BankruptcyRule(),
     DilutionEventsRule(),
     LateFilingRule(),
 ]

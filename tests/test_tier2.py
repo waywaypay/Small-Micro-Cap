@@ -76,6 +76,41 @@ def test_clean_company_has_no_tier2_flags():
     assert t2 and all(r.status is Status.PASS for r in t2)
 
 
+def test_auditor_change_flags_on_recent_8k():
+    # WKHS changed auditors in Jan 2026 (8-K Item 4.01) -> flags within recency.
+    card = _card("WKHS", "0001425287", dt.date(2026, 6, 2))
+    r = _res(card, "T2_AUDITOR_CHANGE")
+    assert r.status is Status.FLAG
+    assert r.citations[0].accession
+
+
+def test_delisting_flags_for_cenn():
+    card = _card("CENN", "0001707919", dt.date(2026, 6, 2))
+    assert _res(card, "T2_DELISTING").status is Status.FLAG
+
+
+def test_delisting_is_point_in_time():
+    # SPCE's 2024-05-29 listing-rule 8-K flags shortly after, ages out a year+ on.
+    fires = _res(_card("SPCE", "0001706946", dt.date(2024, 8, 1)), "T2_DELISTING")
+    aged = _res(_card("SPCE", "0001706946", dt.date(2026, 6, 2)), "T2_DELISTING")
+    assert fires.status is Status.FLAG and aged.status is Status.PASS
+
+
+def test_restatement_8k_is_point_in_time():
+    # SPCE's 2021 non-reliance 8-K flags in 2021, aged out by 2026.
+    fires = _res(_card("SPCE", "0001706946", dt.date(2021, 6, 1)), "T2_RESTATEMENT")
+    aged = _res(_card("SPCE", "0001706946", dt.date(2026, 6, 2)), "T2_RESTATEMENT")
+    assert fires.status is Status.FLAG and aged.status is Status.PASS
+
+
+def test_bankruptcy_rule_is_a_seam_with_no_false_positives():
+    # No bankruptcy 8-K in the set -> the rule runs and passes everywhere.
+    for t, c in (("WKHS", "0001425287"), ("CENN", "0001707919"),
+                 ("NVDA", "0001045810")):
+        assert _res(_card(t, c, dt.date(2026, 6, 2)), "T2_BANKRUPTCY").status \
+            is Status.PASS
+
+
 def test_tier2_is_deterministic():
     a = score_company(FACTS.get_company_facts("WKHS", "0001425287"),
                       dt.date(2026, 6, 2), CFG,

@@ -68,17 +68,27 @@ submissions / full-text APIs.
 |------|-------|--------|
 | T2_GOING_CONCERN | substantial-doubt opinion (PCAOB AS 2415) | 10-K audit language |
 | T2_MATERIAL_WEAKNESS | ICFR not effective | 10-K Item 9A |
+| T2_RESTATEMENT | non-reliance on prior financials | 8-K Item 4.02 |
+| T2_AUDITOR_CHANGE | change in certifying accountant | 8-K Item 4.01 |
+| T2_DELISTING | listing-rule deficiency notice | 8-K Item 3.01 |
+| T2_BANKRUPTCY | bankruptcy / receivership | 8-K Item 1.03 |
 | T2_LATE_FILING | NT 10-K / NT 10-Q (can't file on time) | NT forms |
 | T2_DILUTION_EVENTS | cluster of shelf takedowns / 424B offerings | registration filings |
+
+8-K events are classified deterministically by **item number** (e.g. `4.02`,
+`3.01`) — no language interpretation. Each rule has a configurable recency
+window, so an event is "current" only for a sensible period after filing.
 
 **Why it matters — it closes the Tier-1 blind spot.** `_CLIFFCO` has clean
 trailing numerics (Tier 1 = 0 flags) but a going-concern opinion; **Tier 2
 catches it** (`test_tier2_closes_the_tier1_blind_spot`). On the real set, WKHS
-goes from one numeric flag to four — cash runway **plus** going-concern,
-material-weakness, and late-filing events (score 1.49 → 5.04). The serial-
-dilution rule is strictly point-in-time: WKHS's 2024 424B5 wave flags as-of
-2025-03-01 but has aged out by 2026-06-02. Tier 2 runs by default in
-`landmine run` for any ticker with an event fixture (disable with `--no-events`).
+goes from one numeric flag to **five** — cash runway **plus** going-concern,
+material-weakness, auditor-change, and late-filing events (score 1.49 → 5.54);
+CENN picks up a delisting notice. Everything is strictly point-in-time: WKHS's
+2024 424B5 wave flags as-of 2025-03-01 but ages out by 2026-06-02, and SPCE's
+2024 delisting / 2021 restatement 8-Ks flag in their day and age out later. Tier
+2 runs by default in `landmine run` for any ticker with an event fixture
+(disable with `--no-events`).
 
 ## Quick start
 

@@ -17,6 +17,12 @@
     {"type": "OFFERING", "filed": "2024-08-23", "form": "424B5", "accession": "0001213900-24-072012", "detail": "shelf takedown (S-3)"},
     {"type": "OFFERING", "filed": "2024-07-18", "form": "424B5", "accession": "0001213900-24-062308", "detail": "shelf takedown (S-3)"},
     {"type": "OFFERING", "filed": "2024-05-29", "form": "424B5", "accession": "0001213900-24-047248", "detail": "shelf takedown (S-3)"},
-    {"type": "OFFERING", "filed": "2024-05-10", "form": "424B5", "accession": "0001213900-24-041462", "detail": "shelf takedown (S-3)"}
+    {"type": "OFFERING", "filed": "2024-05-10", "form": "424B5", "accession": "0001213900-24-041462", "detail": "shelf takedown (S-3)"},
+    {"type": "AUDITOR_CHANGE", "filed": "2026-01-21", "form": "8-K", "accession": "0001628280-26-002903", "detail": "Item 4.01 change in certifying accountant"},
+    {"type": "AUDITOR_CHANGE", "filed": "2024-12-23", "form": "8-K", "accession": "0001213900-24-112002", "detail": "Item 4.01 change in certifying accountant"},
+    {"type": "AUDITOR_CHANGE", "filed": "2024-12-09", "form": "8-K", "accession": "0001213900-24-106965", "detail": "Item 4.01 change in certifying accountant"},
+    {"type": "DELISTING", "filed": "2024-10-03", "form": "8-K", "accession": "0001213900-24-084741", "detail": "Item 3.01 listing-rule deficiency"},
+    {"type": "DELISTING", "filed": "2024-03-22", "form": "8-K", "accession": "0001213900-24-025166", "detail": "Item 3.01 listing-rule deficiency"},
+    {"type": "RESTATEMENT", "filed": "2019-11-01", "form": "8-K", "accession": "0001628280-19-013072", "detail": "Item 4.02 non-reliance on prior financials"}
   ]
 }

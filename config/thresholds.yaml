@@ -93,6 +93,26 @@ rules:
     window_days: 540
     severity: HIGH
     severity_score: 0.7
+  T2_RESTATEMENT:
+    enabled: true               # 8-K Item 4.02 non-reliance
+    recency_days: 730
+    severity: HIGH
+    severity_score: 0.8
+  T2_AUDITOR_CHANGE:
+    enabled: true               # 8-K Item 4.01
+    recency_days: 540
+    severity: MEDIUM
+    severity_score: 0.5
+  T2_DELISTING:
+    enabled: true               # 8-K Item 3.01 listing-rule notice
+    recency_days: 540
+    severity: HIGH
+    severity_score: 0.8
+  T2_BANKRUPTCY:
+    enabled: true               # 8-K Item 1.03
+    recency_days: 730
+    severity: CRITICAL
+    severity_score: 1.0
   T2_DILUTION_EVENTS:
     enabled: true
     # flag a cluster of capital raises (shelf takedowns / 424B) in the window.
@@ -111,5 +131,9 @@ scoring:
     R5_EARNINGS_QUALITY: 1.0
     T2_GOING_CONCERN: 2.0
     T2_MATERIAL_WEAKNESS: 1.0
+    T2_RESTATEMENT: 1.5
+    T2_AUDITOR_CHANGE: 1.0
+    T2_DELISTING: 1.5
+    T2_BANKRUPTCY: 2.0
     T2_LATE_FILING: 1.5
     T2_DILUTION_EVENTS: 1.0
