@@ -207,6 +207,56 @@ def _signals_from_payload(payload: dict, source: FilingSource) -> list[LanguageS
     return out
 
 
+# --- input shaping: feed Tier 3 only the flag-relevant passages -------------
+# Distress vocabulary used to pick which paragraphs are worth sending to the LLM.
+# Cuts tokens (cost) and sharpens precision vs. sending whole risk-factor sections.
+DISTRESS_TERMS = [
+    "going concern", "substantial doubt", "ability to continue",
+    "working capital deficiency", "negative working capital", "recurring losses",
+    "accumulated deficit", "stockholders' deficit", "additional financing",
+    "additional funds", "additional capital", "raise capital", "raise additional",
+    "covenant", "default", "cross-default", "delist", "listing requirement",
+    "material weakness", "liquidity", "dilution", "bankruptcy", "restructuring",
+    "impairment", "may not be able", "no assurance",
+]
+_CHARS_PER_TOKEN = 4  # rough heuristic for the budget guard
+
+
+def select_passages(text: str, terms: Optional[list[str]] = None,
+                    max_chars: int = 60000) -> str:
+    """Keep only blocks mentioning a distress term (with the budget cap applied).
+
+    Falls back to the head of the text if nothing matches, so a name is never
+    silently skipped. Deterministic.
+    """
+    low = [t.lower() for t in (terms or DISTRESS_TERMS)]
+    blocks = re.split(r"\n\s*\n", text)
+    if len(blocks) < 2:                      # filings sometimes lack blank lines
+        blocks = [b for b in text.splitlines() if b.strip()]
+    kept = [b.strip() for b in blocks if any(t in b.lower() for t in low)]
+    out = "\n\n".join(kept) if kept else text
+    return out[:max_chars]
+
+
+def prepare_text(text: str, max_input_tokens: Optional[int] = None,
+                 terms: Optional[list[str]] = None, select: bool = True) -> str:
+    """Select flag-relevant passages and enforce a token budget before the LLM."""
+    out = select_passages(text, terms) if select else text
+    if max_input_tokens:
+        out = out[: max_input_tokens * _CHARS_PER_TOKEN]
+    return out
+
+
+def _user_blocks(text: str, source: FilingSource) -> list[dict]:
+    header = (f"Filing: {source.form} (accession {source.accession or 'n/a'}, "
+              f"filed {source.filed.isoformat()}). Section: {source.section}.")
+    return [
+        {"type": "text", "text": f"{header}\n\n<filing_text>\n{text}\n</filing_text>",
+         "cache_control": {"type": "ephemeral"}},
+        {"type": "text", "text": "Extract the soft-risk signals."},
+    ]
+
+
 class CachedLanguageModel:
     """Reads frozen LLM output from ``<dir>/<TICKER>.json``. Deterministic.
 
@@ -253,31 +303,56 @@ class ClaudeLanguageModel:
             self._client = anthropic.Anthropic()  # reads ANTHROPIC_API_KEY
         return self._client
 
+    def _params(self, text: str, source: FilingSource) -> dict:
+        # No temperature — removed on Opus 4.8; the json_schema constrains output.
+        # Cache the frozen system prompt (reused across every filing).
+        return {
+            "model": self.model,
+            "max_tokens": 4096,
+            "system": [{"type": "text", "text": _SYSTEM_PROMPT,
+                        "cache_control": {"type": "ephemeral"}}],
+            "messages": [{"role": "user", "content": _user_blocks(text, source)}],
+            "output_config": {"format": {"type": "json_schema",
+                                         "schema": _OUTPUT_SCHEMA}},
+        }
+
     def analyze(self, text: str, source: FilingSource) -> list[LanguageSignal]:
-        client = self._get_client()
-        header = (f"Filing: {source.form} (accession {source.accession or 'n/a'}, "
-                  f"filed {source.filed.isoformat()}). Section: {source.section}.")
-        resp = client.messages.create(
-            model=self.model,
-            max_tokens=4096,
-            # Cache the frozen system prompt (reused across every filing) and the
-            # large filing text (reused if the same filing is analyzed again).
-            # No temperature — removed on Opus 4.8; the schema constrains output.
-            system=[{"type": "text", "text": _SYSTEM_PROMPT,
-                     "cache_control": {"type": "ephemeral"}}],
-            messages=[{
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": f"{header}\n\n<filing_text>\n{text}\n"
-                     "</filing_text>", "cache_control": {"type": "ephemeral"}},
-                    {"type": "text", "text": "Extract the soft-risk signals."},
-                ],
-            }],
-            output_config={"format": {"type": "json_schema",
-                                      "schema": _OUTPUT_SCHEMA}},
-        )
+        resp = self._get_client().messages.create(**self._params(text, source))
         payload = json.loads(next(b.text for b in resp.content if b.type == "text"))
         return _signals_from_payload(payload, source)
+
+    def analyze_batch(self, items: list[tuple[str, str, FilingSource]],
+                      poll_interval_s: float = 30.0, timeout_s: float = 86400.0
+                      ) -> dict[str, list[LanguageSignal]]:
+        """Submit one Message Batch for many filings (50% cheaper, async).
+
+        ``items`` is (custom_id, text, source). Returns custom_id -> signals
+        (ungrounded — the caller grounds against the exact text it sent).
+        """
+        import time
+        client = self._get_client()
+        by_id = {cid: src for cid, _, src in items}
+        batch = client.messages.batches.create(
+            requests=[{"custom_id": cid, "params": self._params(text, src)}
+                      for cid, text, src in items])
+        deadline = time.monotonic() + timeout_s
+        while True:
+            b = client.messages.batches.retrieve(batch.id)
+            if b.processing_status == "ended":
+                break
+            if time.monotonic() > deadline:
+                raise TimeoutError(f"batch {batch.id} did not finish in time")
+            time.sleep(poll_interval_s)
+        out: dict[str, list[LanguageSignal]] = {}
+        for res in client.messages.batches.results(batch.id):
+            if res.result.type != "succeeded":
+                continue
+            msg = res.result.message
+            text = next((blk.text for blk in msg.content if blk.type == "text"), "{}")
+            src = by_id.get(res.custom_id)
+            if src is not None:
+                out[res.custom_id] = _signals_from_payload(_extract_json(text), src)
+        return out
 
 
 class ClaudeCodeLanguageModel:
@@ -337,10 +412,18 @@ class ClaudeCodeLanguageModel:
 
 
 class Tier3Analyzer:
-    """Orchestrates a Tier-3 run: PIT gate -> model -> grounding -> report."""
+    """Orchestrates a Tier-3 run: prep text -> PIT gate -> model -> grounding.
 
-    def __init__(self, model: LanguageModel):
+    ``max_input_tokens`` and ``select`` shape the text sent to the model (only
+    flag-relevant passages, capped to a token budget) to control cost.
+    """
+
+    def __init__(self, model: LanguageModel, max_input_tokens: Optional[int] = None,
+                 focus_terms: Optional[list[str]] = None, select: bool = True):
         self.model = model
+        self.max_input_tokens = max_input_tokens
+        self.focus_terms = focus_terms
+        self.select = select
 
     def analyze(self, text: str, source: FilingSource,
                 as_of: dt.date) -> AdvisoryReport:
@@ -348,8 +431,39 @@ class Tier3Analyzer:
         report = AdvisoryReport(ticker=source.ticker, as_of=as_of, model=model_name)
         if source.filed > as_of:
             return report                      # PIT: filing not yet public
-        for sig in self.model.analyze(text, source):
-            if quote_is_grounded(sig.quote, text):
+        prepared = prepare_text(text, self.max_input_tokens, self.focus_terms,
+                                self.select)
+        for sig in self.model.analyze(prepared, source):
+            if quote_is_grounded(sig.quote, prepared):
                 report.signals.append(sig)     # auditable: quote really is there
             # ungrounded (hallucinated-quote) signals are dropped, not reported
         return report
+
+
+def analyze_filings_batch(model: ClaudeLanguageModel,
+                          items: list[tuple[FilingSource, str]], as_of: dt.date,
+                          max_input_tokens: Optional[int] = None,
+                          focus_terms: Optional[list[str]] = None,
+                          select: bool = True) -> list[AdvisoryReport]:
+    """Batch-analyze many filings in one job (PIT-gated, prepared, grounded).
+
+    A whole-universe Tier-3 pass = one call here. Text is prepared (passage
+    selection + token budget) before submission; results are grounded against the
+    exact prepared text that was sent.
+    """
+    prepared: list[tuple[str, str, FilingSource]] = []
+    for source, text in items:
+        if source.filed > as_of:
+            continue                           # PIT
+        ptext = prepare_text(text, max_input_tokens, focus_terms, select)
+        cid = f"{source.ticker}|{source.accession or source.section}"
+        prepared.append((cid, ptext, source))
+
+    raw = model.analyze_batch(prepared) if prepared else {}
+    reports = []
+    for cid, ptext, source in prepared:
+        report = AdvisoryReport(ticker=source.ticker, as_of=as_of, model=model.model)
+        report.signals = [s for s in raw.get(cid, [])
+                          if quote_is_grounded(s.quote, ptext)]
+        reports.append(report)
+    return reports

@@ -108,6 +108,78 @@ def test_claude_code_model_parses_cli_envelope_and_grounds():
     assert any("<filing_text>" in part for part in captured["cmd"])
 
 
+def test_select_passages_keeps_only_distress_blocks():
+    from landmine.tier3 import select_passages
+    text = ("The Company sells premium widgets and grew revenue this year.\n\n"
+            "These conditions raise substantial doubt about its ability to "
+            "continue as a going concern.\n\n"
+            "Our headquarters are in a lovely building downtown.")
+    out = select_passages(text)
+    assert "going concern" in out
+    assert "premium widgets" not in out and "lovely building" not in out
+
+
+def test_prepare_text_enforces_token_budget():
+    from landmine.tier3 import prepare_text
+    big = "going concern " * 5000
+    out = prepare_text(big, max_input_tokens=50, select=False)
+    assert len(out) <= 50 * 4
+
+
+# --- batch path: injected fake client, no SDK/network ----------------------
+import types  # noqa: E402
+
+
+def _fake_client(results):
+    class _Blk:
+        type = "text"
+        def __init__(self, t): self.text = t
+
+    class _Batches:
+        def create(self, requests):
+            self.requests = requests
+            return types.SimpleNamespace(id="batch_1")
+        def retrieve(self, _id):
+            return types.SimpleNamespace(processing_status="ended")
+        def results(self, _id):
+            return results
+
+    return types.SimpleNamespace(messages=types.SimpleNamespace(batches=_Batches()))
+
+
+def _succeeded(custom_id, signals_json):
+    blk = types.SimpleNamespace(type="text", text=signals_json)
+    msg = types.SimpleNamespace(content=[blk])
+    return types.SimpleNamespace(custom_id=custom_id,
+                                 result=types.SimpleNamespace(type="succeeded",
+                                                              message=msg))
+
+
+def test_batch_end_to_end_grounds_and_drops_hallucinations():
+    import json as _json
+    from landmine.tier3 import ClaudeLanguageModel, analyze_filings_batch
+    cid = f"{SOURCE.ticker}|{SOURCE.accession}"
+    payload = _json.dumps({"signals": [
+        {"type": "GOING_CONCERN_LANGUAGE", "severity": "HIGH", "rationale": "x",
+         "quote": "raises substantial doubt about its ability to continue as a "
+                  "going concern", "section": "Item 1A"},
+        {"type": "LITIGATION", "severity": "HIGH", "rationale": "made up",
+         "quote": "a quote not present in the filing at all", "section": "x"},
+    ]})
+    model = ClaudeLanguageModel(client=_fake_client([_succeeded(cid, payload)]))
+    reports = analyze_filings_batch(model, [(SOURCE, _text())], dt.date(2026, 6, 2))
+    assert len(reports) == 1
+    assert [s.type for s in reports[0].signals] == [SignalType.GOING_CONCERN_LANGUAGE]
+
+
+def test_batch_is_point_in_time():
+    from landmine.tier3 import ClaudeLanguageModel, analyze_filings_batch
+    # As-of before the filing, the item is skipped and no batch is submitted.
+    model = ClaudeLanguageModel(client=_fake_client([]))
+    reports = analyze_filings_batch(model, [(SOURCE, _text())], dt.date(2026, 3, 30))
+    assert reports == []
+
+
 def test_quote_grounding_normalizes_whitespace():
     assert quote_is_grounded("substantial doubt about its ability",
                              "...raises substantial   doubt about\nits ability...")

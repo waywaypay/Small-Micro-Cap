@@ -216,8 +216,10 @@ def cmd_language(args) -> int:
         model = ClaudeCodeLanguageModel(model=args.model or None)
     else:
         model = CachedLanguageModel(args.tier3_cache)
-    report = Tier3Analyzer(model).analyze(text, source,
-                                          _dt.date.fromisoformat(args.as_of))
+    report = Tier3Analyzer(
+        model, max_input_tokens=(args.max_input_tokens or None),
+        select=not args.no_select,
+    ).analyze(text, source, _dt.date.fromisoformat(args.as_of))
 
     print("\n" + "=" * 70)
     print("TIER 3 — LANGUAGE SIGNALS  (ADVISORY · NON-DETERMINISTIC · LLM)")
@@ -238,6 +240,46 @@ def cmd_language(args) -> int:
             json.dump(report.to_dict(), fh, sort_keys=True, indent=2)
             fh.write("\n")
         print(f"\nWrote {args.json}")
+    return 0
+
+
+def cmd_language_batch(args) -> int:
+    import datetime as _dt
+    from .tier3 import (CachedLanguageModel, ClaudeLanguageModel, FilingSource,
+                        Tier3Analyzer, analyze_filings_batch)
+
+    as_of = _dt.date.fromisoformat(args.as_of)
+    items = []
+    for ticker, (fname, meta) in _FILINGS.items():
+        with open(os.path.join(args.filings, fname), "r", encoding="utf-8") as fh:
+            text = fh.read()
+        src = FilingSource(ticker=ticker, form=meta["form"],
+                           filed=_dt.date.fromisoformat(meta["filed"]),
+                           section=meta["section"], accession=meta["accession"])
+        items.append((src, text))
+
+    mit = args.max_input_tokens or None
+    if args.source == "claude":
+        # One batched API job for the whole set (50% cheaper, async).
+        reports = analyze_filings_batch(
+            ClaudeLanguageModel(model=args.model or "claude-opus-4-8"),
+            items, as_of, max_input_tokens=mit, select=not args.no_select)
+    else:
+        # cached path has no batch — analyze locally per filing.
+        analyzer = Tier3Analyzer(CachedLanguageModel(args.tier3_cache),
+                                 max_input_tokens=mit, select=not args.no_select)
+        reports = [analyzer.analyze(t, s, as_of) for s, t in items]
+
+    payload = [r.to_dict() for r in sorted(reports, key=lambda r: r.ticker)]
+    print(f"Tier 3 batch — {len(payload)} filing(s), source={args.source}")
+    for r in payload:
+        print(f"  {r['ticker']}: {len(r['signals'])} grounded signal(s)")
+    if args.json:
+        os.makedirs(os.path.dirname(args.json) or ".", exist_ok=True)
+        with open(args.json, "w", encoding="utf-8") as fh:
+            json.dump(payload, fh, sort_keys=True, indent=2)
+            fh.write("\n")
+        print(f"Wrote {args.json}")
     return 0
 
 
@@ -300,8 +342,25 @@ def build_parser() -> argparse.ArgumentParser:
                    help="model id/alias; blank uses the session/provider default")
     l.add_argument("--filings", default=os.path.join(_ROOT, "tests", "fixtures", "filings"))
     l.add_argument("--tier3-cache", default=os.path.join(_ROOT, "tests", "fixtures", "tier3"))
+    l.add_argument("--max-input-tokens", type=int, default=0,
+                   help="cap filing text sent to the LLM (0 = no cap)")
+    l.add_argument("--no-select", action="store_true",
+                   help="send full text instead of only flag-relevant passages")
     l.add_argument("--json", default="")
     l.set_defaults(func=cmd_language)
+
+    lb = sub.add_parser("language-batch",
+                        help="Tier 3 over many filings in one batched job")
+    lb.add_argument("--as-of", default="2026-06-02")
+    lb.add_argument("--source", choices=["cached", "claude"], default="cached",
+                    help="claude = one Anthropic Batch API job (50%% cheaper)")
+    lb.add_argument("--model", default="")
+    lb.add_argument("--max-input-tokens", type=int, default=8000)
+    lb.add_argument("--no-select", action="store_true")
+    lb.add_argument("--filings", default=os.path.join(_ROOT, "tests", "fixtures", "filings"))
+    lb.add_argument("--tier3-cache", default=os.path.join(_ROOT, "tests", "fixtures", "tier3"))
+    lb.add_argument("--json", default="")
+    lb.set_defaults(func=cmd_language_batch)
     return p
 
 

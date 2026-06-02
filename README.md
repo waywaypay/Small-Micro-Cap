@@ -115,10 +115,21 @@ to surface soft-risk signals the numeric and event rules can't see. It is the
   signal back to the filing even though the judgment isn't reproducible.
 - **Point-in-time** — a filing filed after the as-of date is never analyzed.
 
+- **Cost control** — Tier 3 is the only paid tier, so input is shaped before it
+  reaches the model: `select_passages` keeps only blocks mentioning distress
+  vocabulary (going concern, working-capital deficiency, covenant, dilution, …)
+  and `--max-input-tokens` caps the budget. A whole-universe pass is **one
+  batched job** via the Anthropic Batch API (50% cheaper, async). Running Tier 3
+  only on names already flagged by Tiers 1–2, with passage selection + Haiku/
+  Sonnet + batch, a full small/mid-cap pass is single-digit-to-low-tens of
+  dollars; the deterministic tiers that do most of the detection are free.
+
 ```bash
-landmine language --ticker WKHS --as-of 2026-06-02            # cached/offline (default)
+landmine language --ticker WKHS                               # cached/offline (default)
 landmine language --ticker WKHS --source claude-code          # live, via the Claude Code session plan (no API key)
 landmine language --ticker WKHS --source claude               # live, via Anthropic SDK (needs ANTHROPIC_API_KEY)
+landmine language --ticker WKHS --source claude-code --max-input-tokens 4000   # cap tokens sent
+landmine language-batch --source claude                       # one Batch API job over many filings (50% cheaper)
 ```
 
 ```
