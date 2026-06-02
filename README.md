@@ -106,8 +106,9 @@ to surface soft-risk signals the numeric and event rules can't see. It is the
   `ClaudeCodeLanguageModel` drives the **Claude Code CLI** (`claude -p`) using
   the current session's plan auth — no API key, run isolated in a temp dir so
   no repo/git context leaks in; `ClaudeLanguageModel` is the Anthropic SDK
-  client (`claude-opus-4-8`, structured `json_schema` output, prompt caching on
-  the system prompt + filing text). Note: Opus 4.8 removed `temperature`, so
+  client (defaults to **`claude-haiku-4-5`** — grounded extraction doesn't need
+  Opus; override with `--model`; structured `json_schema` output, prompt caching
+  on the system prompt + filing text). Note: Opus 4.8 removed `temperature`, so
   stability comes from the schema/prompt constraint, not a sampling param.
 - **Every signal is grounded** — each carries a verbatim quote that a
   deterministic check verifies appears in the source text; ungrounded

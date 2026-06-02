@@ -180,6 +180,19 @@ def test_batch_is_point_in_time():
     assert reports == []
 
 
+def test_default_model_is_cheap_and_estimator_prices_it():
+    from landmine.tier3 import DEFAULT_MODEL, estimate_cost
+    assert DEFAULT_MODEL == "claude-haiku-4-5"          # cheap default for extraction
+    texts = ["x" * 4000, "y" * 4000]                    # ~1000 tokens each
+    in_tok, out_tok, usd = estimate_cost(texts, "claude-haiku-4-5")
+    assert in_tok > 2000 and out_tok == 1200 and usd > 0
+    # batch halves; Opus is pricier; local/cached is free
+    _, _, usd_batch = estimate_cost(texts, "claude-haiku-4-5", batch=True)
+    _, _, usd_opus = estimate_cost(texts, "claude-opus-4-8")
+    assert usd_batch < usd < usd_opus
+    assert estimate_cost(texts, "cached")[2] is None
+
+
 def test_quote_grounding_normalizes_whitespace():
     assert quote_is_grounded("substantial doubt about its ability",
                              "...raises substantial   doubt about\nits ability...")

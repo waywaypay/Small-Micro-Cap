@@ -196,10 +196,10 @@ def _filing_provider(args):
 
 
 def _tier3_model(args):
-    from .tier3 import (CachedLanguageModel, ClaudeCodeLanguageModel,
-                        ClaudeLanguageModel)
+    from .tier3 import (DEFAULT_MODEL, CachedLanguageModel,
+                        ClaudeCodeLanguageModel, ClaudeLanguageModel)
     if args.source == "claude":
-        return ClaudeLanguageModel(model=args.model or "claude-opus-4-8")
+        return ClaudeLanguageModel(model=args.model or DEFAULT_MODEL)
     if args.source == "claude-code":
         return ClaudeCodeLanguageModel(model=args.model or None)
     return CachedLanguageModel(args.tier3_cache)
@@ -257,7 +257,8 @@ def _select_tickers(args, universe: dict) -> list[str]:
 
 def cmd_language_batch(args) -> int:
     import datetime as _dt
-    from .tier3 import Tier3Analyzer, analyze_filings_batch
+    from .tier3 import (DEFAULT_MODEL, Tier3Analyzer, analyze_filings_batch,
+                        estimate_cost, prepare_text)
 
     as_of = _dt.date.fromisoformat(args.as_of)
     universe = _load_universe(args.universe)
@@ -269,10 +270,21 @@ def cmd_language_batch(args) -> int:
         items.extend(provider.get_relevant_sections(t, universe.get(t), as_of))
 
     mit = args.max_input_tokens or None
+    model_id = args.model or DEFAULT_MODEL
+    # cost estimate over the text that will actually be sent
+    prepared = [prepare_text(s_text, mit, select=not args.no_select)
+                for _, s_text in items]
+    est_model = model_id if args.source == "claude" else "cached"
+    in_tok, out_tok, usd = estimate_cost(prepared, est_model,
+                                         batch=(args.source == "claude"))
+    cost_str = "free (local)" if usd is None else f"~${usd:.2f} ({model_id}, batched)"
+    print(f"Estimate: {len(items)} section(s), ~{in_tok:,} in + ~{out_tok:,} out "
+          f"tokens, {cost_str}")
+
     if args.source == "claude":
         from .tier3 import ClaudeLanguageModel
         reports = analyze_filings_batch(
-            ClaudeLanguageModel(model=args.model or "claude-opus-4-8"),
+            ClaudeLanguageModel(model=model_id),
             items, as_of, max_input_tokens=mit, select=not args.no_select)
     else:
         model = _tier3_model(args)

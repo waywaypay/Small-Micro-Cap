@@ -49,11 +49,18 @@ only data filed on/before it; no look-ahead).
    python -m landmine run --as-of 2026-06-02 --universe config/universe.yaml \
      --json out/scorecard.json
    ```
-3. **Tier 3 (advisory), only on flagged names** — optional, costs LLM tokens:
+3. **Tier 3 (advisory), only on flagged names** — optional, costs LLM tokens.
+   Recommended bulk path (cheapest): `--source claude` uses the Batch API (−50%)
+   and defaults to Haiku 4.5; `language-batch` prints a token/cost estimate first.
    ```bash
    python -m landmine language-batch --from-scorecard out/scorecard.json --source claude
-   # single name: python -m landmine language --ticker WKHS --source claude-code
+   # bigger judgment if needed: --model claude-sonnet-4-6  (or claude-opus-4-8)
+   # single name, this session's plan: python -m landmine language --ticker WKHS --source claude-code
    ```
+   Cost is dominated by Tier 3 alone (Tiers 1–2 are free). A full small/mid-cap
+   pass at the defaults (flagged-only · passage-selected · Haiku · batched) is a
+   couple of dollars; do not use `--source claude-code` for bulk (per-call
+   plan/context overhead).
 
 Other commands: `calibrate` (precision/recall on a labeled set), `backtest`
 (`--synthetic` or `--labels file.csv`).

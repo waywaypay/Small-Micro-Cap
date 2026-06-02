@@ -26,10 +26,18 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional, Protocol
 
-# Production model id (Anthropic). Opus 4.8 removed temperature/top_p/top_k — do
-# NOT send sampling params (they 400). Stability comes from the json-schema
-# output constraint + a tight system prompt, not from a low temperature.
-DEFAULT_MODEL = "claude-opus-4-8"
+# Production model id (Anthropic). Default is Haiku: Tier 3 is grounded phrase
+# extraction, which Haiku handles at ~5x lower cost than Opus — override with
+# --model for harder judgment. Opus 4.8 removed temperature/top_p/top_k (they
+# 400); stability comes from the json-schema output constraint + a tight prompt.
+DEFAULT_MODEL = "claude-haiku-4-5"
+
+# $ per token (input, output) for the cost estimator. Cached prices.
+PRICING = {
+    "claude-haiku-4-5": (1e-6, 5e-6),
+    "claude-sonnet-4-6": (3e-6, 15e-6),
+    "claude-opus-4-8": (5e-6, 25e-6),
+}
 
 
 class SignalType(str, Enum):
@@ -245,6 +253,24 @@ def prepare_text(text: str, max_input_tokens: Optional[int] = None,
     if max_input_tokens:
         out = out[: max_input_tokens * _CHARS_PER_TOKEN]
     return out
+
+
+def estimate_cost(prepared_texts: list[str], model: str, batch: bool = False,
+                  out_tokens_each: int = 600, sys_tokens_each: int = 300
+                  ) -> tuple[int, int, Optional[float]]:
+    """Rough (input_tokens, output_tokens, usd) for a Tier-3 run.
+
+    Returns usd=None when the model isn't a priced API model (e.g. the local
+    cached path, which is free). Token counts use a chars/4 heuristic.
+    """
+    in_tok = sum(len(t) // _CHARS_PER_TOKEN for t in prepared_texts) \
+        + len(prepared_texts) * sys_tokens_each
+    out_tok = len(prepared_texts) * out_tokens_each
+    rate = PRICING.get(model.split(":")[-1])
+    if rate is None:
+        return in_tok, out_tok, None
+    usd = in_tok * rate[0] + out_tok * rate[1]
+    return in_tok, out_tok, (usd * 0.5 if batch else usd)
 
 
 def _user_blocks(text: str, source: FilingSource) -> list[dict]:
