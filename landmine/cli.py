@@ -196,8 +196,8 @@ _FILINGS = {
 
 def cmd_language(args) -> int:
     import datetime as _dt
-    from .tier3 import (CachedLanguageModel, ClaudeLanguageModel, FilingSource,
-                        Tier3Analyzer)
+    from .tier3 import (CachedLanguageModel, ClaudeCodeLanguageModel,
+                        ClaudeLanguageModel, FilingSource, Tier3Analyzer)
 
     ticker = args.ticker.upper()
     if ticker not in _FILINGS:
@@ -210,8 +210,12 @@ def cmd_language(args) -> int:
     source = FilingSource(ticker=ticker, form=meta["form"],
                           filed=_dt.date.fromisoformat(meta["filed"]),
                           section=meta["section"], accession=meta["accession"])
-    model = (ClaudeLanguageModel(model=args.model) if args.source == "claude"
-             else CachedLanguageModel(args.tier3_cache))
+    if args.source == "claude":
+        model = ClaudeLanguageModel(model=args.model or "claude-opus-4-8")
+    elif args.source == "claude-code":
+        model = ClaudeCodeLanguageModel(model=args.model or None)
+    else:
+        model = CachedLanguageModel(args.tier3_cache)
     report = Tier3Analyzer(model).analyze(text, source,
                                           _dt.date.fromisoformat(args.as_of))
 
@@ -287,9 +291,13 @@ def build_parser() -> argparse.ArgumentParser:
                        help="Tier 3 advisory language signals (non-deterministic)")
     l.add_argument("--ticker", required=True)
     l.add_argument("--as-of", default="2026-06-02")
-    l.add_argument("--source", choices=["cached", "claude"], default="cached",
-                   help="cached = frozen/offline (default); claude = live LLM")
-    l.add_argument("--model", default="claude-opus-4-8")
+    l.add_argument("--source", choices=["cached", "claude", "claude-code"],
+                   default="cached",
+                   help="cached = frozen/offline (default); claude = Anthropic SDK "
+                        "(needs ANTHROPIC_API_KEY); claude-code = this Claude Code "
+                        "session's plan via the `claude` CLI")
+    l.add_argument("--model", default="",
+                   help="model id/alias; blank uses the session/provider default")
     l.add_argument("--filings", default=os.path.join(_ROOT, "tests", "fixtures", "filings"))
     l.add_argument("--tier3-cache", default=os.path.join(_ROOT, "tests", "fixtures", "tier3"))
     l.add_argument("--json", default="")

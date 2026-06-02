@@ -78,6 +78,36 @@ def test_tier3_does_not_touch_the_deterministic_scorecard():
     assert not any(r.rule_code.startswith("T3") for r in card.results)
 
 
+def test_claude_code_model_parses_cli_envelope_and_grounds():
+    # ClaudeCodeLanguageModel shells out to `claude -p`; inject a fake runner that
+    # returns the CLI's JSON envelope so we test parsing + grounding without a call.
+    import json as _json
+    from landmine.tier3 import ClaudeCodeLanguageModel
+
+    inner = {"signals": [
+        {"type": "GOING_CONCERN_LANGUAGE", "severity": "HIGH", "rationale": "x",
+         "quote": "raises substantial doubt about its ability to continue as a "
+                  "going concern", "section": "Item 1A"},
+        {"type": "LITIGATION", "severity": "HIGH", "rationale": "made up",
+         "quote": "a quote that is not in the source text at all", "section": "x"},
+    ]}
+    captured = {}
+
+    def fake_runner(cmd, stdin):
+        captured["cmd"], captured["stdin"] = cmd, stdin
+        # CLI wraps the result (possibly in a code fence) in a JSON envelope.
+        return _json.dumps({"is_error": False,
+                            "result": "```json\n" + _json.dumps(inner) + "\n```"})
+
+    model = ClaudeCodeLanguageModel(model="claude-opus-4-8", runner=fake_runner)
+    report = Tier3Analyzer(model).analyze(_text(), SOURCE, dt.date(2026, 6, 2))
+    # the grounded signal survives; the fabricated-quote one is dropped
+    assert [s.type for s in report.signals] == [SignalType.GOING_CONCERN_LANGUAGE]
+    assert "--output-format" in captured["cmd"] and "-p" in captured["cmd"]
+    assert "claude-opus-4-8" in captured["cmd"]
+    assert any("<filing_text>" in part for part in captured["cmd"])
+
+
 def test_quote_grounding_normalizes_whitespace():
     assert quote_is_grounded("substantial doubt about its ability",
                              "...raises substantial   doubt about\nits ability...")

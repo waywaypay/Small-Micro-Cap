@@ -102,11 +102,13 @@ to surface soft-risk signals the numeric and event rules can't see. It is the
   scorecard or the deterministic `total_score`. It's a separate report.
 - **Injectable model** — the LLM sits behind a `LanguageModel` interface.
   `CachedLanguageModel` reads frozen output (deterministic; what tests and
-  reproducible runs use, no key/network). `ClaudeLanguageModel` is the
-  production client (Anthropic SDK, `claude-opus-4-8`, structured `json_schema`
-  output, prompt caching on the system prompt + filing text). Note: Opus 4.8
-  removed `temperature`, so stability comes from the schema constraint + a tight
-  system prompt, not a sampling param.
+  reproducible runs use, no key/network). Two live backends:
+  `ClaudeCodeLanguageModel` drives the **Claude Code CLI** (`claude -p`) using
+  the current session's plan auth — no API key, run isolated in a temp dir so
+  no repo/git context leaks in; `ClaudeLanguageModel` is the Anthropic SDK
+  client (`claude-opus-4-8`, structured `json_schema` output, prompt caching on
+  the system prompt + filing text). Note: Opus 4.8 removed `temperature`, so
+  stability comes from the schema/prompt constraint, not a sampling param.
 - **Every signal is grounded** — each carries a verbatim quote that a
   deterministic check verifies appears in the source text; ungrounded
   (hallucinated-quote) signals are dropped. So a human can audit each soft
@@ -115,7 +117,8 @@ to surface soft-risk signals the numeric and event rules can't see. It is the
 
 ```bash
 landmine language --ticker WKHS --as-of 2026-06-02            # cached/offline (default)
-landmine language --ticker WKHS --source claude               # live LLM (needs ANTHROPIC_API_KEY)
+landmine language --ticker WKHS --source claude-code          # live, via the Claude Code session plan (no API key)
+landmine language --ticker WKHS --source claude               # live, via Anthropic SDK (needs ANTHROPIC_API_KEY)
 ```
 
 ```

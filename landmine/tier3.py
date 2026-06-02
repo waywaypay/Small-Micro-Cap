@@ -165,6 +165,47 @@ _SYSTEM_PROMPT = (
     "Return only the structured JSON."
 )
 
+# Prompt-level schema description, for backends without native json_schema output
+# (e.g. the Claude Code CLI). Mirrors _OUTPUT_SCHEMA.
+_SCHEMA_HINT = (
+    'Return ONLY a JSON object (no markdown, no prose) of the form:\n'
+    '{"signals": [{"type": <one of ' + "|".join(t.value for t in SignalType) +
+    '>, "severity": <LOW|MEDIUM|HIGH>, "rationale": <string>, '
+    '"quote": <verbatim substring copied exactly from the text>, '
+    '"section": <string>}]}'
+)
+
+
+def _extract_json(s: str) -> dict:
+    """Pull the JSON object out of a model response (tolerates code fences/prose)."""
+    s = s.strip()
+    if s.startswith("```"):
+        s = re.sub(r"^```[a-zA-Z]*\n?", "", s)
+        s = re.sub(r"\n?```$", "", s).strip()
+    try:
+        return json.loads(s)
+    except json.JSONDecodeError:
+        a, b = s.find("{"), s.rfind("}")
+        if a != -1 and b != -1 and b > a:
+            return json.loads(s[a:b + 1])
+        raise
+
+
+def _signals_from_payload(payload: dict, source: FilingSource) -> list[LanguageSignal]:
+    out = []
+    for r in payload.get("signals", []):
+        try:
+            out.append(LanguageSignal(
+                type=SignalType(r["type"]),
+                severity=Severity(r["severity"]),
+                rationale=r["rationale"],
+                quote=r["quote"],
+                section=r.get("section", source.section),
+            ))
+        except (KeyError, ValueError):
+            continue  # skip malformed rows rather than fail the whole analysis
+    return out
+
 
 class CachedLanguageModel:
     """Reads frozen LLM output from ``<dir>/<TICKER>.json``. Deterministic.
@@ -236,16 +277,63 @@ class ClaudeLanguageModel:
                                       "schema": _OUTPUT_SCHEMA}},
         )
         payload = json.loads(next(b.text for b in resp.content if b.type == "text"))
-        return [
-            LanguageSignal(
-                type=SignalType(r["type"]),
-                severity=Severity(r["severity"]),
-                rationale=r["rationale"],
-                quote=r["quote"],
-                section=r.get("section", source.section),
-            )
-            for r in payload.get("signals", [])
-        ]
+        return _signals_from_payload(payload, source)
+
+
+class ClaudeCodeLanguageModel:
+    """Production analyzer that runs through the **Claude Code CLI** (`claude -p`).
+
+    Uses the current Claude Code session's auth/plan — no separate API key or SDK,
+    no direct network call from this process. Non-deterministic; keep it OUT of
+    reproducible pipelines. The CLI has no native json_schema output, so the
+    schema is described in the prompt and the JSON is extracted from the result;
+    Tier3Analyzer's verbatim-quote grounding check still vouches for every signal.
+
+    ``runner`` is injectable for testing: a callable ``(cmd: list[str],
+    stdin: str) -> str`` returning the CLI's stdout. Defaults to a subprocess.
+    """
+
+    def __init__(self, claude_bin: str = "claude", model: Optional[str] = None,
+                 timeout_s: int = 240, runner=None):
+        self.claude_bin = claude_bin
+        self.model = f"claude-code:{model}" if model else "claude-code"
+        self._model_arg = model
+        self.timeout_s = timeout_s
+        self._runner = runner or self._subprocess_runner
+
+    def _subprocess_runner(self, cmd: list[str], stdin: str) -> str:
+        import shutil
+        import subprocess
+        import tempfile
+        # Run in a throwaway empty dir so the nested CLI does NOT pick up this
+        # repo's git status / project context (which otherwise contaminates the
+        # response). Keeps the call a clean, isolated extraction.
+        workdir = tempfile.mkdtemp(prefix="landmine_t3_")
+        try:
+            proc = subprocess.run(cmd, input=stdin, capture_output=True, text=True,
+                                  timeout=self.timeout_s, cwd=workdir)
+        finally:
+            shutil.rmtree(workdir, ignore_errors=True)
+        if proc.returncode != 0:
+            raise RuntimeError(f"claude CLI failed ({proc.returncode}): "
+                               f"{proc.stderr[:500]}")
+        return proc.stdout
+
+    def analyze(self, text: str, source: FilingSource) -> list[LanguageSignal]:
+        header = (f"Filing: {source.form} (accession {source.accession or 'n/a'}, "
+                  f"filed {source.filed.isoformat()}). Section: {source.section}.")
+        prompt = (f"{header}\n\n{_SCHEMA_HINT}\n\n<filing_text>\n{text}\n"
+                  "</filing_text>")
+        # Prompt passed positionally; run isolated (see runner). No tools needed.
+        cmd = [self.claude_bin, "-p", prompt, "--output-format", "json",
+               "--system-prompt", _SYSTEM_PROMPT]
+        if self._model_arg:
+            cmd += ["--model", self._model_arg]
+        envelope = json.loads(self._runner(cmd, ""))
+        if envelope.get("is_error"):
+            raise RuntimeError(f"claude CLI error: {envelope.get('result')!r}")
+        payload = _extract_json(envelope.get("result", "{}"))
+        return _signals_from_payload(payload, source)
 
 
 class Tier3Analyzer:
