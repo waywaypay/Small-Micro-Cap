@@ -373,12 +373,22 @@ fetch runs where SEC egress is allowed.
 Full chain: `universe` → `run` (deterministic T1+T2) → `language-batch
 --from-scorecard` (Tier 3 only on flagged names).
 
+## Run as a Claude skill
+
+Packaged as an Agent Skill at `.claude/skills/landmine-screen/` (`SKILL.md` +
+`reference.md`). In Claude Code (or any skills-aware harness) it auto-loads when
+a request matches — "run the landmine screen", "check TICKER for red flags",
+"is this company a distress risk" — and drives the CLI, reads the scorecard, and
+reports the firing rules with their raw values + citations. The skill enforces
+the guardrails: Tier 3 stays advisory, point-in-time `--as-of` is always set,
+`INSUFFICIENT_DATA` is never a pass, and it's framed as research, not advice.
+
 ## Out of scope (clean seams left for later)
 
-The **Skill wrapper** and **portfolio construction** — the surrounding system,
-not the screen. The screen itself is complete: a universe builder, all three
-tiers (Tier 1 = 5 numeric rules; Tier 2 = 8 event rules incl. going concern,
-material weakness, restatement, auditor change, delisting, bankruptcy, late
-filings, offering clusters; Tier 3 = advisory LLM language signals, quarantined),
-three ingestion paths (MCP / companyfacts / DERA), and a calibration + bulk
-backtest harness.
+**Portfolio construction** — the only remaining piece, and it's the surrounding
+system, not the screen. The screen itself is complete: a universe builder, all
+three tiers (Tier 1 = 5 numeric rules; Tier 2 = 8 event rules incl. going
+concern, material weakness, restatement, auditor change, delisting, bankruptcy,
+late filings, offering clusters; Tier 3 = advisory LLM language signals,
+quarantined), three ingestion paths (MCP / companyfacts / DERA), a calibration +
+bulk backtest harness, and a packaged Claude skill wrapper.

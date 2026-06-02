@@ -1,0 +1,69 @@
+# Landmine screen — rule catalog & schema
+
+Read this when you need exact rule semantics, thresholds, severity, or the output
+schema. Thresholds live in `config/thresholds.yaml` (starter values, calibratable).
+
+## Tier 1 — numeric rules (deterministic)
+
+| Code | Fires when | Key inputs / notes |
+|------|-----------|--------------------|
+| `R1_DILUTION` | shares-outstanding YoY growth > 25% | companyfacts path uses raw `dei:EntityCommonStockSharesOutstanding` (HIGH confidence); MCP path derives shares = NetIncome / EPS-basic (LOW confidence, severity-capped, returns `INSUFFICIENT_DATA` if the series is too noisy). Gated: only flags if also cash-burning. |
+| `R2_CASH_RUNWAY` | cash ÷ quarterly operating burn < 4 quarters **and** operating cash flow < 0 | burn = avg of consecutive trailing quarters, else annual/4, else latest quarter. The workhorse signal. |
+| `R3_NEGATIVE_EQUITY` | total stockholders' equity < 0 | gated by `require_negative_ocf`: buyback-driven negative equity in a cash-generative firm is cleared, not flagged. |
+| `R4_LIQUIDITY` | current ratio (current assets / current liabilities) < 1.0 | same cash-generative gate (asset-light / float-funded firms aren't flagged). |
+| `R5_EARNINGS_QUALITY` | accruals ratio (NetIncome − OperatingCashFlow) / TotalAssets > 0.10 | evaluated on the latest **annual** period; gated to "profit not backed by cash" (OCF < 0). |
+
+Missing input → `INSUFFICIENT_DATA`, never a silent pass.
+
+## Tier 2 — event rules (deterministic; rolls up with Tier 1)
+
+Classified by 8-K item number / form type, each with a configurable recency window.
+
+| Code | Source |
+|------|--------|
+| `T2_GOING_CONCERN` | 10-K audit language (PCAOB AS 2415) |
+| `T2_MATERIAL_WEAKNESS` | 10-K Item 9A (ICFR not effective) |
+| `T2_RESTATEMENT` | 8-K Item 4.02 (non-reliance) |
+| `T2_AUDITOR_CHANGE` | 8-K Item 4.01 |
+| `T2_DELISTING` | 8-K Item 3.01 |
+| `T2_BANKRUPTCY` | 8-K Item 1.03 |
+| `T2_LATE_FILING` | NT 10-K / NT 10-Q |
+| `T2_DILUTION_EVENTS` | cluster of S-3/424B shelf takedowns in a window |
+
+## Tier 3 — language signals (LLM, advisory, NON-deterministic, never scored)
+
+Soft-risk types: `GOING_CONCERN_LANGUAGE`, `LIQUIDITY_DOUBT`,
+`CAPITAL_RAISE_INTENT`, `COVENANT_RISK`, `CUSTOMER_CONCENTRATION`,
+`SUPPLIER_DEPENDENCE`, `LITIGATION`, `REGULATORY_RISK`, `MANAGEMENT_TURNOVER`,
+`RELATED_PARTY`, `IMPAIRMENT_RISK`, `OTHER`. Severity LOW/MEDIUM/HIGH. Every
+signal carries a **verbatim quote** that is verified to appear in the source
+(ungrounded signals are dropped). Backends: `cached` (frozen/offline), `claude`
+(Anthropic SDK), `claude-code` (the current Claude Code session's plan).
+
+## Severity & scoring
+
+Severity bands map a rule's normalized exceedance to NONE/LOW/MEDIUM/HIGH/CRITICAL
+with a `severity_score` in [0,1]. The rollup `total_score` is a config-weighted
+sum of flagged rules' scores (`config/thresholds.yaml` → `scoring.weights`). Use
+`total_score` (or a cutoff on it) rather than raw flag counts — low-severity
+flags (e.g. a healthy buyback name) score near zero.
+
+## Output schema
+
+- SQLite `out/landmine.sqlite`: `findings` (one row per ticker×as_of×rule:
+  status, flag, severity, severity_score, confidence, computed_value,
+  raw_values, threshold, citations) + `rollup` (num_flags, num_insufficient,
+  max_severity, total_score, weighted_total, flagged_rules).
+- Canonical `out/scorecard.json`: list of per-ticker cards (the byte-identical
+  reproducibility artifact). Each result: `rule_code, reason, status, severity,
+  severity_score, confidence, computed_value, raw_values, threshold, citations`.
+- Citation fields: `concept, period_end, filed, form, source, accession, unit`.
+
+## Data sources & point-in-time
+
+Canonical source is SEC EDGAR XBRL companyfacts (`filed` date = as-of stamp,
+`accn` = citation). Bulk path: DERA Financial Statement Data Sets. Where
+`data.sec.gov` egress is blocked, facts are sourced from the SEC EDGAR MCP server
+frozen to fixtures. `CompanyFacts.as_of(date)` is the single look-ahead guard:
+for each (concept, period) it keeps the latest vintage filed on/before the as-of
+date, so restatements are respected without look-ahead.
