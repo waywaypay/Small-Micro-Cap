@@ -27,6 +27,7 @@ Classified by 8-K item number / form type, each with a configurable recency wind
 | `T2_AUDITOR_CHANGE` | 8-K Item 4.01 |
 | `T2_DELISTING` | 8-K Item 3.01 |
 | `T2_BANKRUPTCY` | 8-K Item 1.03 |
+| `T2_REVERSE_SPLIT` | 8-K Item 5.03 + text confirm; serial splits escalate MEDIUM→HIGH→CRITICAL (closes R1's blind spot — a reverse split is a share *decrease*) |
 | `T2_LATE_FILING` | NT 10-K / NT 10-Q |
 | `T2_DILUTION_EVENTS` | cluster of S-3/424B shelf takedowns in a window |
 

@@ -125,6 +125,15 @@ rules:
     min_count: 3
     severity_cap: 7.0           # min_count + 7 offerings -> score 1.0
     severity_bands: [0.0, 2.0, 4.0, 6.0]
+  T2_REVERSE_SPLIT:
+    enabled: true               # 8-K Item 5.03 reverse stock split(s)
+    # serial reverse-splitting (multiple within a few years) is the classic
+    # death-spiral signature, so severity escalates with the count in this window.
+    window_days: 1095           # ~3 years
+    min_count: 1                # one reverse split already flags (bid-price cure)
+    severity_cap: 3.0           # score = count / cap (3+ splits -> 1.0)
+    # bands on the raw count: 1 -> MEDIUM, 2 -> HIGH, 3+ -> CRITICAL
+    severity_bands: [0.0, 1.0, 2.0, 3.0]
 
 # Data-quality guard. A flag is only as good as the data under it: if even the
 # freshest input a Tier-1 flag stands on is older than the window (the company
@@ -154,7 +163,8 @@ corroboration:
   enabled: true
   R2_CASH_RUNWAY:
     corroborating_events: [GOING_CONCERN, MATERIAL_WEAKNESS, LATE_FILING,
-                           DELISTING, BANKRUPTCY, RESTATEMENT, OFFERING]
+                           DELISTING, BANKRUPTCY, RESTATEMENT, OFFERING,
+                           REVERSE_SPLIT]
     within_days: 540
     # true -> an uncorroborated R2 flag is capped to this severity/score (changes
     # the deterministic score); false -> annotate only, leave the score untouched.
@@ -178,6 +188,7 @@ scoring:
     T2_BANKRUPTCY: 2.0
     T2_LATE_FILING: 1.5
     T2_DILUTION_EVENTS: 1.0
+    T2_REVERSE_SPLIT: 1.0
 
 # Portfolio construction from the scorecard (negative selection: exclude
 # landmines, then weight survivors). All knobs here.

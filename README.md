@@ -77,12 +77,17 @@ the latest 10-K — so a live run is a real all-tiers screen, not Tier-1-only.
 | T2_AUDITOR_CHANGE | change in certifying accountant | 8-K Item 4.01 |
 | T2_DELISTING | listing-rule deficiency notice | 8-K Item 3.01 |
 | T2_BANKRUPTCY | bankruptcy / receivership | 8-K Item 1.03 |
+| T2_REVERSE_SPLIT | reverse stock split(s) — serial splits escalate | 8-K Item 5.03 |
 | T2_LATE_FILING | NT 10-K / NT 10-Q (can't file on time) | NT forms |
 | T2_DILUTION_EVENTS | cluster of shelf takedowns / 424B offerings | registration filings |
 
 8-K events are classified deterministically by **item number** (e.g. `4.02`,
-`3.01`) — no language interpretation. Each rule has a configurable recency
-window, so an event is "current" only for a sensible period after filing.
+`3.01`) — no language interpretation. The one exception is `T2_REVERSE_SPLIT`:
+Item `5.03` covers any charter amendment (incl. fiscal-year changes), so it adds
+a deterministic text confirm (`reverse stock split`) to tell a reverse split
+apart from the rest — still pattern matching, no LLM. Each rule has a
+configurable recency window, so an event is "current" only for a sensible period
+after filing.
 
 **Why it matters — it closes the Tier-1 blind spot.** `_CLIFFCO` has clean
 trailing numerics (Tier 1 = 0 flags) but a going-concern opinion; **Tier 2
@@ -449,9 +454,9 @@ the guardrails: Tier 3 stays advisory, point-in-time `--as-of` is always set,
 
 ## Built end to end
 
-Universe builder → 3 tiers (Tier 1 = 5 numeric rules; Tier 2 = 8 event rules
+Universe builder → 3 tiers (Tier 1 = 5 numeric rules; Tier 2 = 9 event rules
 incl. going concern, material weakness, restatement, auditor change, delisting,
-bankruptcy, late filings, offering clusters; Tier 3 = advisory LLM language
+bankruptcy, reverse splits, late filings, offering clusters; Tier 3 = advisory LLM language
 signals, quarantined) → calibration + bulk-backtest harness → exclusion-based
 portfolio → packaged Claude skill. Three ingestion paths (MCP / companyfacts /
 DERA), all injectable and unit-tested offline.

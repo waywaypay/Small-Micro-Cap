@@ -10,6 +10,7 @@ from landmine.events import (
     EventType,
     detect_going_concern,
     detect_material_weakness,
+    detect_reverse_split,
 )
 from landmine.scoring import score_company
 
@@ -80,6 +81,39 @@ def test_detectors():
     assert not detect_going_concern("substantial doubt" + " x" * 200 + "going concern")
     assert detect_material_weakness("a material weakness was identified")
     assert not detect_material_weakness("internal controls were effective")
+    assert detect_reverse_split("effected a one-for-ten reverse stock split")
+    assert not detect_reverse_split("declared a 2-for-1 forward stock split")
+
+
+_SUB_RS = {"filings": {"recent": {
+    "form": ["8-K", "10-K"],
+    "filingDate": ["2025-09-15", "2026-03-31"],
+    "reportDate": ["", "2025-12-31"],
+    "accessionNumber": ["rs-1", "k-1"],
+    "primaryDocument": ["8k503.htm", "10k.htm"],
+    "items": ["5.03", ""],
+}}}
+
+
+def test_reverse_split_detected_from_item_503_text():
+    # Item 5.03 + a text confirm ("reverse stock split") -> a REVERSE_SPLIT event.
+    ftp = _FakeFTP("...effected a one-for-ten reverse stock split of its shares...")
+    es = EdgarEventProvider(user_agent="", fetch=lambda _u: json.dumps(_SUB_RS),
+                            filing_text_provider=ftp, scan_10k=True
+                            ).get_events("RVRS", "1707919")
+    rs = [e for e in es.events if e.type is EventType.REVERSE_SPLIT]
+    assert len(rs) == 1
+    assert rs[0].accession == "rs-1" and rs[0].form == "8-K"
+    assert rs[0].filed == dt.date(2025, 9, 15)
+
+
+def test_item_503_without_reverse_split_text_is_not_flagged():
+    # 5.03 also covers fiscal-year changes — without the phrase, no event fires.
+    ftp = _FakeFTP("...amended the bylaws to change the fiscal year end to June 30...")
+    es = EdgarEventProvider(user_agent="", fetch=lambda _u: json.dumps(_SUB_RS),
+                            filing_text_provider=ftp, scan_10k=True
+                            ).get_events("RVRS", "1707919")
+    assert not any(e.type is EventType.REVERSE_SPLIT for e in es.events)
 
 
 def test_null_8k_items_does_not_abort_the_cik():

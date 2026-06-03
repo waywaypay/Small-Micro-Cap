@@ -113,6 +113,45 @@ class BankruptcyRule(_BinaryEventRule):
     reason_flag = "T2_BANKRUPTCY"
 
 
+class ReverseSplitRule:
+    """Reverse stock split(s) — 8-K Item 5.03 — with serial escalation.
+
+    In the micro/small-cap universe this screen targets, a reverse split is
+    overwhelmingly a *cure* for an exchange minimum-bid-price deficiency (the same
+    distress the Item 3.01 delisting rule sees, now acted on) and is well
+    documented to precede further dilution and weak long-run returns. It also
+    closes a Tier-1 blind spot: a reverse split is a share *decrease*, so it can
+    never trip the YoY-growth dilution rule, and on the MCP path it pushes that
+    rule to INSUFFICIENT_DATA via split-adjusted EPS noise — leaving the screen
+    silent exactly when a telling action occurred.
+
+    Unlike a lone shelf takedown, a *single* reverse split is already a signal, so
+    severity is the count itself (not the count above a floor): one split reads
+    MEDIUM, and serial reverse-splitting — the classic death-spiral signature —
+    escalates to HIGH then CRITICAL.
+    """
+
+    code = "T2_REVERSE_SPLIT"            # 8-K Item 5.03 charter amendment
+
+    def evaluate(self, view: EventsView, cfg: RuleConfig) -> RuleResult:
+        window = cfg.get("window_days", 1095)
+        min_count = int(cfg.get("min_count", 1))
+        threshold = {"window_days": window, "min_reverse_splits": min_count}
+        splits = view.select(EventType.REVERSE_SPLIT, within_days=window)
+        n = len(splits)
+        raw = {"reverse_splits_in_window": n,
+               "forms": sorted({e.form for e in splits})}
+        if n < min_count:
+            return _pass(self.code, "T2_REVERSE_SPLIT_ABSENT", raw)
+        # The count itself is the exceedance (one split already flags): bands map
+        # 1 -> MEDIUM, 2 -> HIGH, 3+ -> CRITICAL.
+        sev, score = cfg.severity_for(float(n))
+        cites = [_cite(e) for e in splits[:3]]      # most recent few, for audit
+        raw["most_recent"] = splits[0].filed.isoformat()
+        reason = "T2_SERIAL_REVERSE_SPLIT" if n > 1 else "T2_REVERSE_SPLIT"
+        return _flag(self.code, reason, sev, score, raw, threshold, cites, float(n))
+
+
 class DilutionEventsRule:
     """Flag a cluster of capital-raise events (shelf takedowns / offerings).
 
@@ -147,6 +186,7 @@ ALL_T2_RULES: list[T2Rule] = [
     AuditorChangeRule(),
     DelistingRule(),
     BankruptcyRule(),
+    ReverseSplitRule(),
     DilutionEventsRule(),
     LateFilingRule(),
 ]
