@@ -7,13 +7,21 @@ import yaml
 
 from landmine.data.facts import CompanyFacts
 from landmine.data.provider import facts_from_companyfacts
-from landmine.universe import (EntityInfo, FramesSizeProvider,
-                              PublicFloatSizeProvider, StaticEntityClassifier,
-                              StaticSizeProvider, SubmissionsEntityClassifier,
-                              build_universe, is_excluded_sector,
-                              is_operating_company, load_company_tickers,
-                              partition_operating, quarterly_instant_frames,
-                              write_universe_yaml)
+from landmine.universe import (
+    EntityInfo,
+    FramesSizeProvider,
+    PublicFloatSizeProvider,
+    StaticEntityClassifier,
+    StaticSizeProvider,
+    SubmissionsEntityClassifier,
+    build_universe,
+    is_excluded_sector,
+    is_operating_company,
+    load_company_tickers,
+    partition_operating,
+    quarterly_instant_frames,
+    write_universe_yaml,
+)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 UDIR = os.path.join(ROOT, "tests", "fixtures", "universe")

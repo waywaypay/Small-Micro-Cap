@@ -12,11 +12,10 @@ Neither output records wall-clock time; the only date in the data is ``as_of``.
 """
 from __future__ import annotations
 
-import datetime as dt
 import json
 import os
 import sqlite3
-from typing import Iterable
+from collections.abc import Iterable
 
 from .config import Config
 from .models import Scorecard

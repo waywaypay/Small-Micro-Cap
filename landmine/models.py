@@ -7,9 +7,9 @@ identically, which is the backbone of the engine's reproducibility guarantee.
 from __future__ import annotations
 
 import datetime as dt
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 
 class Status(str, Enum):
@@ -49,7 +49,7 @@ class Citation:
     filed: str            # ISO date the value was first publicly filed (as-of stamp)
     form: str             # filing form, e.g. "10-Q", "10-K"
     source: str           # data lineage, e.g. "SEC EDGAR XBRL (via MCP)"
-    accession: Optional[str] = None
+    accession: str | None = None
     unit: str = "USD"
 
     def to_dict(self) -> dict[str, Any]:
@@ -82,7 +82,7 @@ class RuleResult:
     raw_values: dict[str, Any]     # the inputs that triggered/cleared the rule
     threshold: dict[str, Any]      # the configured threshold(s) applied
     citations: list[Citation] = field(default_factory=list)
-    computed_value: Optional[float] = None  # the headline metric (e.g. runway)
+    computed_value: float | None = None  # the headline metric (e.g. runway)
     confidence: Confidence = Confidence.HIGH
 
     def to_dict(self) -> dict[str, Any]:
@@ -107,7 +107,7 @@ class Scorecard:
     """Per-ticker rollup across all rules for a single as-of date."""
 
     ticker: str
-    cik: Optional[str]
+    cik: str | None
     as_of: dt.date
     results: list[RuleResult] = field(default_factory=list)
 

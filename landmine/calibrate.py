@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import datetime as dt
 from dataclasses import dataclass
-from typing import Optional
 
 from .config import Config
 from .data.provider import FactsProvider
@@ -69,7 +68,7 @@ def _confuse(pairs: list[tuple[bool, bool]]) -> Confusion:
 
 def calibrate(labels: dict, universe: dict, cfg: Config,
               provider: FactsProvider, default_as_of: dt.date,
-              cutoffs: Optional[list[float]] = None) -> dict:
+              cutoffs: list[float] | None = None) -> dict:
     if cutoffs is None:
         cutoffs = [0.25, 0.5, 0.75, 1.0, 1.5, 2.0]
 
@@ -101,7 +100,6 @@ def calibrate(labels: dict, universe: dict, cfg: Config,
     for rule in ALL_RULES:
         fired = [r for r in rows if rule.code in r["flagged_rules"]]
         tp = sum(1 for r in fired if r["actual_distress"])
-        fp = len(fired) - tp
         evaluated = [r for r in rows
                      if r["rule_status"].get(rule.code) is not Status.INSUFFICIENT_DATA]
         per_rule[rule.code] = {

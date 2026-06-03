@@ -8,7 +8,7 @@ a required input is missing: a missing number is unknown, not safe.
 """
 from __future__ import annotations
 
-from typing import Optional, Protocol
+from typing import Protocol
 
 from ..concepts import OPERATING_CASH_FLOW
 from ..config import RuleConfig
@@ -24,7 +24,7 @@ class Rule(Protocol):
 
 
 def is_cash_generative(view: AsOfView, annual_lookback: int = 2
-                       ) -> tuple[Optional[bool], Optional[ResolvedFact]]:
+                       ) -> tuple[bool | None, ResolvedFact | None]:
     """Is the company generating operating cash? -> (verdict, evidence_fact).
 
     Returns True only when the freshest operating cash flow is non-negative AND
@@ -73,7 +73,7 @@ def insufficient(code: str, missing: list[str], threshold: dict) -> RuleResult:
 
 
 def passed(code: str, reason: str, raw: dict, threshold: dict,
-           citations: list[Citation], computed: Optional[float],
+           citations: list[Citation], computed: float | None,
            confidence: Confidence = Confidence.HIGH) -> RuleResult:
     return RuleResult(
         rule_code=code,

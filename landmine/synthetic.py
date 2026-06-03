@@ -14,11 +14,17 @@ from __future__ import annotations
 
 import datetime as dt
 import random
-from typing import Optional
 
-from .concepts import (CASH, CURRENT_ASSETS, CURRENT_LIABILITIES, NET_INCOME,
-                       OPERATING_CASH_FLOW, SHARES_OUTSTANDING,
-                       STOCKHOLDERS_EQUITY, TOTAL_ASSETS)
+from .concepts import (
+    CASH,
+    CURRENT_ASSETS,
+    CURRENT_LIABILITIES,
+    NET_INCOME,
+    OPERATING_CASH_FLOW,
+    SHARES_OUTSTANDING,
+    STOCKHOLDERS_EQUITY,
+    TOTAL_ASSETS,
+)
 from .data.facts import CompanyFacts, Fact
 
 _PERIOD = dt.date(2025, 3, 31)
@@ -52,7 +58,7 @@ def _company(profile: str, i: int, rng: random.Random) -> list[Fact]:
     j = 1.0 + rng.uniform(0.0, 0.4)
     inst, dur = [], []
 
-    def I(concept, val):             # instant fact at the latest period
+    def inst_fact(concept, val):     # instant fact at the latest period
         inst.append(Fact(concept, _PERIOD, _FILED, float(val), "10-Q", ""))
 
     def D(concept, val, q, end, filed):   # duration fact (Quarterly/Annual)
@@ -86,8 +92,11 @@ def _company(profile: str, i: int, rng: random.Random) -> list[Fact]:
     elif profile == "lowcash_fp":    # transient burn quarter on low cash -> R2 FP
         cash, ocf_q, ocf_y = 6e6, -3e6 * j, 8e6 * j
 
-    I(TOTAL_ASSETS, assets); I(CURRENT_ASSETS, cur_a); I(CURRENT_LIABILITIES, cur_l)
-    I(CASH, cash); I(STOCKHOLDERS_EQUITY, equity)
+    inst_fact(TOTAL_ASSETS, assets)
+    inst_fact(CURRENT_ASSETS, cur_a)
+    inst_fact(CURRENT_LIABILITIES, cur_l)
+    inst_fact(CASH, cash)
+    inst_fact(STOCKHOLDERS_EQUITY, equity)
     inst.append(Fact(SHARES_OUTSTANDING, _PERIOD, _FILED, sh_now, "10-Q", ""))
     inst.append(Fact(SHARES_OUTSTANDING, _PRIOR, _PRIOR_FILED, sh_prior, "10-Q", ""))
     inst.append(Fact(TOTAL_ASSETS, _FY_END, _FY_FILED, assets * 1.02, "10-K", ""))
@@ -120,7 +129,7 @@ def synthetic_dataset(n_distress: int = 30, n_healthy: int = 30, seed: int = 7):
         add(f"H{i:03d}", "healthy", _healthy_profile(i), i)
 
     class _Provider:
-        def get_company_facts(self, ticker: str, cik: Optional[str]) -> CompanyFacts:
+        def get_company_facts(self, ticker: str, cik: str | None) -> CompanyFacts:
             return facts[ticker]
 
     return labels, universe, _Provider()

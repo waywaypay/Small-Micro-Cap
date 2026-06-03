@@ -33,7 +33,7 @@ class RuleConfig:
         score = max(0.0, min(1.0, exceedance / cap if cap else 1.0))
         labels = [Severity.LOW, Severity.MEDIUM, Severity.HIGH, Severity.CRITICAL]
         sev = Severity.LOW
-        for label, lo in zip(labels, bands):
+        for label, lo in zip(labels, bands, strict=False):
             if exceedance >= lo:
                 sev = label
         return sev, score
@@ -44,8 +44,8 @@ class Config:
     raw: dict[str, Any]
 
     @classmethod
-    def load(cls, path: str) -> "Config":
-        with open(path, "r", encoding="utf-8") as fh:
+    def load(cls, path: str) -> Config:
+        with open(path, encoding="utf-8") as fh:
             return cls(yaml.safe_load(fh))
 
     def rule(self, code: str) -> RuleConfig:
