@@ -5,8 +5,12 @@ import os
 
 from landmine.config import Config
 from landmine.data.facts import CompanyFacts
-from landmine.events import (EdgarEventProvider, EventType, detect_going_concern,
-                            detect_material_weakness)
+from landmine.events import (
+    EdgarEventProvider,
+    EventType,
+    detect_going_concern,
+    detect_material_weakness,
+)
 from landmine.scoring import score_company
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

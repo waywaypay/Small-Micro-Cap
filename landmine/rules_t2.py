@@ -9,11 +9,23 @@ rules structurally cannot see.
 """
 from __future__ import annotations
 
-from typing import Optional
+from typing import Protocol
 
 from .config import RuleConfig
 from .events import Event, EventsView, EventType
 from .models import Citation, RuleResult, Severity, Status
+
+
+class T2Rule(Protocol):
+    """A Tier-2 event rule: a stable ``code`` and ``evaluate(EventsView, cfg)``.
+
+    Counterpart to :class:`landmine.rules.base.Rule`, but reads the point-in-time
+    :class:`EventsView` rather than the numeric ``AsOfView``."""
+
+    code: str
+
+    def evaluate(self, view: EventsView, cfg: RuleConfig) -> RuleResult:
+        ...
 
 
 def _cite(e: Event) -> Citation:
@@ -33,7 +45,7 @@ def _pass(code: str, reason: str, raw: dict) -> RuleResult:
 
 def _flag(code: str, reason: str, sev: Severity, score: float,
           raw: dict, threshold: dict, cites: list[Citation],
-          computed: Optional[float] = None) -> RuleResult:
+          computed: float | None = None) -> RuleResult:
     return RuleResult(code, reason, Status.FLAG, sev, score, raw, threshold,
                       cites, computed)
 
@@ -128,7 +140,7 @@ class DilutionEventsRule:
                      cites, float(n))
 
 
-ALL_T2_RULES = [
+ALL_T2_RULES: list[T2Rule] = [
     GoingConcernRule(),
     MaterialWeaknessRule(),
     RestatementRule(),

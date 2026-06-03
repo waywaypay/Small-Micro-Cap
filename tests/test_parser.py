@@ -2,7 +2,7 @@
 import datetime as dt
 
 from landmine.concepts import STOCKHOLDERS_EQUITY
-from landmine.data.mcp_parser import parse_money, parse_mcp_text
+from landmine.data.mcp_parser import parse_mcp_text, parse_money
 
 
 def test_parse_money_variants():

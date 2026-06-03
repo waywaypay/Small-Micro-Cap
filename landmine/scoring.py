@@ -2,8 +2,6 @@
 from __future__ import annotations
 
 import datetime as dt
-from typing import Optional
-from typing import Optional
 
 from .config import Config
 from .corroboration import corroborate
@@ -16,7 +14,7 @@ from .staleness import apply_staleness
 
 
 def score_company(facts: CompanyFacts, as_of: dt.date, cfg: Config,
-                  events: Optional[EventSet] = None) -> Scorecard:
+                  events: EventSet | None = None) -> Scorecard:
     """Evaluate every enabled rule as-of ``as_of`` and roll up the results.
 
     The point-in-time views (facts and, if supplied, events) are built once,
@@ -36,11 +34,11 @@ def score_company(facts: CompanyFacts, as_of: dt.date, cfg: Config,
                                             stale_cfg))
     if events is not None:
         ev_view = events.as_of(as_of)
-        for rule in ALL_T2_RULES:
-            rc = cfg.rule(rule.code)
+        for t2_rule in ALL_T2_RULES:
+            rc = cfg.rule(t2_rule.code)
             if not rc.enabled:
                 continue
-            card.results.append(rule.evaluate(ev_view, rc))
+            card.results.append(t2_rule.evaluate(ev_view, rc))
         card.results = corroborate(card.results, ev_view, cfg.corroboration)
     return card
 

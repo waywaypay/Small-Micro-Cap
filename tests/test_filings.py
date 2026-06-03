@@ -3,8 +3,7 @@ import datetime as dt
 import json
 import os
 
-from landmine.filings import (EdgarFilingTextProvider, FixtureFilingTextProvider,
-                              extract_sections)
+from landmine.filings import EdgarFilingTextProvider, FixtureFilingTextProvider, extract_sections
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FILINGS = os.path.join(ROOT, "tests", "fixtures", "filings")

@@ -20,7 +20,6 @@ the configured window).
 from __future__ import annotations
 
 import datetime as dt
-from typing import Optional
 
 from ..concepts import EPS_BASIC, NET_INCOME, SHARES_OUTSTANDING
 from ..config import RuleConfig
@@ -34,6 +33,8 @@ class DilutionRule:
 
     def _shares_series(self, view: AsOfView, min_abs_eps: float):
         """Return ({period_end: shares}, method, {period_end: [Citation]}, confidence)."""
+        shares: dict[dt.date, float]
+        cites: dict[dt.date, list[Citation]]
         direct = view.series(SHARES_OUTSTANDING)
         if direct:
             shares = {rf.period_end: rf.value for rf in direct}
@@ -43,8 +44,8 @@ class DilutionRule:
 
         ni = {rf.period_end: rf for rf in view.series(NET_INCOME)}
         eps = {rf.period_end: rf for rf in view.series(EPS_BASIC)}
-        shares: dict[dt.date, float] = {}
-        cites: dict[dt.date, list[Citation]] = {}
+        shares = {}
+        cites = {}
         for pe in set(ni) & set(eps):
             e = eps[pe].value
             if abs(e) < min_abs_eps:
@@ -71,7 +72,7 @@ class DilutionRule:
 
         periods = sorted(shares, reverse=True)
         latest = periods[0]
-        prior: Optional[dt.date] = None
+        prior: dt.date | None = None
         for pe in periods[1:]:
             if lo <= (latest - pe).days <= hi:
                 prior = pe
@@ -84,7 +85,7 @@ class DilutionRule:
         # window, the EPS-derived estimate is not trustworthy — say so.
         if confidence is Confidence.LOW:
             window_pes = sorted(pe for pe in periods if prior <= pe <= latest)
-            for a, b in zip(window_pes, window_pes[1:]):
+            for a, b in zip(window_pes, window_pes[1:], strict=False):
                 va, vb = shares[a], shares[b]
                 if va > 0 and (vb / va > max_jump or va / vb > max_jump):
                     return insufficient(

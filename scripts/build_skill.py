@@ -8,7 +8,6 @@ checkout and no SEC network egress. Run: `python scripts/build_skill.py`.
 """
 from __future__ import annotations
 
-import os
 import pathlib
 import shutil
 import zipfile
@@ -19,13 +18,15 @@ OUT_DIR = ROOT / "dist" / "landmine-screen"
 ZIP_PATH = ROOT / "dist" / "landmine-screen.zip"
 
 _OLD_SETUP = ('## Setup\n\n```bash\n'
-              'pip install -e .        # exposes the `landmine` command; or use `python -m landmine`\n```')
+              'pip install -e .        # exposes the `landmine` command; '
+              'or use `python -m landmine`\n```')
 _NEW_SETUP = ('## Setup (self-contained bundle)\n\n'
               'This skill bundles the `landmine` package, `config/`, and offline data\n'
               "fixtures, so it runs with no repo checkout and no network. From this\n"
               "skill's directory:\n\n```bash\n"
               'pip install -e .            # installs the `landmine` CLI (only dep: PyYAML)\n'
-              '# or, without installing:  export PYTHONPATH="$PWD"   then use `python -m landmine`\n'
+              '# or, without installing:  export PYTHONPATH="$PWD"   '
+              'then use `python -m landmine`\n'
               '```\n\n'
               'Default config/fixture paths resolve inside the bundle. Live SEC fetch\n'
               '(`--source claude`/`--filing-source edgar`/`--source sec`) needs network\n'

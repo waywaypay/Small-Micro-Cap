@@ -7,7 +7,8 @@ each a list of metric sections. A metric section looks like::
     ----------------------------------------
       2026-03-31 [Quarterly, 10-Q]: $-16.52M (Filed: 2026-05-14)
       2025-03-31 [Quarterly, 10-Q]: $-12.49M (Source: 2026-05-14 (comparative...))
-      ⚠ RESTATED: 2024-12-31 was originally $-47.59M (filed 2025-03-31), restated to $-38.15M (filed 2026-03-31)
+      ⚠ RESTATED: 2024-12-31 was originally $-47.59M (filed 2025-03-31),
+        restated to $-38.15M (filed 2026-03-31)
 
 Each *primary* / *comparative* line yields one Fact (value @ filed date). Each
 *RESTATED* line yields **two** Facts — the original (value @ original filed) and
@@ -21,7 +22,6 @@ from __future__ import annotations
 
 import datetime as dt
 import re
-from typing import Optional
 
 from ..concepts import MCP_LABEL_TO_CONCEPT
 from .facts import Fact
@@ -45,7 +45,7 @@ _RESTATED_RE = re.compile(
 _SUFFIX = {"B": 1e9, "M": 1e6, "K": 1e3}
 
 
-def parse_money(tok: str) -> Optional[float]:
+def parse_money(tok: str) -> float | None:
     """Parse '$-16.52M', '$600,000', '$-1.99', '$0.00', '—' -> float | None."""
     tok = tok.strip()
     if tok in ("—", "-", "N/A", ""):
@@ -80,7 +80,7 @@ def _qualifier_and_form(bracket: str) -> tuple[str, str]:
 
 def parse_mcp_text(text: str, ticker: str) -> list[Fact]:
     facts: list[Fact] = []
-    current_concept: Optional[str] = None
+    current_concept: str | None = None
     lines = text.splitlines()
     for i, line in enumerate(lines):
         header = _HEADER_RE.match(line.strip())

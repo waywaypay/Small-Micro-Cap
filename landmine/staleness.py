@@ -12,15 +12,15 @@ from __future__ import annotations
 
 import datetime as dt
 from dataclasses import replace
-from typing import Any, Optional
+from typing import Any
 
 from .models import RuleResult, Severity, Status
 
 
-def newest_cited_period(result: RuleResult) -> Optional[dt.date]:
+def newest_cited_period(result: RuleResult) -> dt.date | None:
     """Most recent ``period_end`` among a result's citations — the freshest data
     point the flag stands on. ``None`` if no citation has a parseable period."""
-    newest: Optional[dt.date] = None
+    newest: dt.date | None = None
     for c in result.citations:
         try:
             pe = dt.date.fromisoformat(c.period_end)
@@ -31,7 +31,7 @@ def newest_cited_period(result: RuleResult) -> Optional[dt.date]:
     return newest
 
 
-def staleness_days(result: RuleResult, as_of: dt.date) -> Optional[int]:
+def staleness_days(result: RuleResult, as_of: dt.date) -> int | None:
     """Age (days) of the freshest cited period relative to ``as_of``."""
     pe = newest_cited_period(result)
     return None if pe is None else (as_of - pe).days

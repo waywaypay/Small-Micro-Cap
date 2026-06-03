@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import datetime as dt
 from dataclasses import dataclass
-from typing import Optional
 
 from ..concepts import INSTANT_CONCEPTS
 
@@ -32,7 +31,7 @@ class Fact:
     value: float
     form: str
     qualifier: str          # "Quarterly", "Annual", or "" for instants
-    accession: Optional[str] = None
+    accession: str | None = None
     source: str = "SEC EDGAR XBRL (via MCP)"
 
     @property
@@ -62,7 +61,7 @@ class AsOfView:
         self.as_of = as_of
         self._resolved = resolved
 
-    def series(self, concept: str, qualifier: Optional[str] = None) -> list[ResolvedFact]:
+    def series(self, concept: str, qualifier: str | None = None) -> list[ResolvedFact]:
         """All resolved observations of ``concept``, newest period first.
 
         ``qualifier`` (e.g. "Quarterly") filters duration concepts to a single
@@ -77,11 +76,11 @@ class AsOfView:
             out = [rf for rf in out if rf.fact.qualifier in (qualifier, "")]
         return sorted(out, key=lambda rf: rf.period_end, reverse=True)
 
-    def latest(self, concept: str, qualifier: Optional[str] = None) -> Optional[ResolvedFact]:
+    def latest(self, concept: str, qualifier: str | None = None) -> ResolvedFact | None:
         s = self.series(concept, qualifier)
         return s[0] if s else None
 
-    def at(self, concept: str, period_end: dt.date) -> Optional[ResolvedFact]:
+    def at(self, concept: str, period_end: dt.date) -> ResolvedFact | None:
         return self._resolved.get((concept, period_end))
 
 
@@ -98,7 +97,7 @@ def _vintage_key(f: Fact) -> tuple[dt.date, str, float]:
 class CompanyFacts:
     """All known Facts for one company, across all vintages."""
 
-    def __init__(self, ticker: str, cik: Optional[str], facts: list[Fact]):
+    def __init__(self, ticker: str, cik: str | None, facts: list[Fact]):
         self.ticker = ticker
         self.cik = cik
         self.facts = facts

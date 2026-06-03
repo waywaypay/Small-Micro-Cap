@@ -29,8 +29,9 @@ import datetime as dt
 import json
 import os
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Optional, Protocol
+from typing import Protocol
 
 from .concepts import PUBLIC_FLOAT
 
@@ -58,7 +59,7 @@ def _http_fetch(user_agent: str) -> Callable[[str], str]:
     return fetch
 
 
-def load_company_tickers(fetch: Optional[Callable[[str], str]] = None,
+def load_company_tickers(fetch: Callable[[str], str] | None = None,
                          user_agent: str = "") -> list[TickerRecord]:
     """Parse SEC company_tickers.json -> TickerRecords (CIK zero-padded)."""
     fetch = fetch or _http_fetch(user_agent)
@@ -76,7 +77,7 @@ def load_company_tickers(fetch: Optional[Callable[[str], str]] = None,
 
 
 class SizeProvider(Protocol):
-    def market_value(self, ticker: str, cik: str) -> Optional[float]:
+    def market_value(self, ticker: str, cik: str) -> float | None:
         ...
 
 
@@ -87,7 +88,7 @@ class StaticSizeProvider:
         # accept either zero-padded or bare CIK keys
         self._by_cik = {f"{int(k):010d}": float(v) for k, v in sizes.items()}
 
-    def market_value(self, ticker: str, cik: str) -> Optional[float]:
+    def market_value(self, ticker: str, cik: str) -> float | None:
         return self._by_cik.get(f"{int(cik):010d}") if cik else None
 
 
@@ -98,7 +99,7 @@ class PublicFloatSizeProvider:
         self.facts_provider = facts_provider
         self.as_of = as_of
 
-    def market_value(self, ticker: str, cik: str) -> Optional[float]:
+    def market_value(self, ticker: str, cik: str) -> float | None:
         try:
             facts = self.facts_provider.get_company_facts(ticker, cik)
         except Exception:
@@ -144,13 +145,13 @@ class FramesSizeProvider:
                   "EntityPublicFloat/USD/{frame}.json")
 
     def __init__(self, as_of: dt.date, user_agent: str = "",
-                 fetch: Optional[Callable[[str], str]] = None,
-                 n_quarters: int = 8, frames: Optional[list[str]] = None):
+                 fetch: Callable[[str], str] | None = None,
+                 n_quarters: int = 8, frames: list[str] | None = None):
         self.as_of = as_of
         self.frames = frames if frames is not None \
             else quarterly_instant_frames(as_of, n_quarters)
         self._fetch = fetch or _http_fetch(user_agent)
-        self._by_cik: Optional[dict[str, tuple[dt.date, float]]] = None
+        self._by_cik: dict[str, tuple[dt.date, float]] | None = None
 
     def _load(self) -> None:
         merged: dict[str, tuple[dt.date, float]] = {}
@@ -173,7 +174,7 @@ class FramesSizeProvider:
                     merged[cik] = (end, val)
         self._by_cik = merged
 
-    def market_value(self, ticker: str, cik: str) -> Optional[float]:
+    def market_value(self, ticker: str, cik: str) -> float | None:
         if self._by_cik is None:
             self._load()
         if not cik:
@@ -253,8 +254,8 @@ class SubmissionsEntityClassifier:
     SUBMISSIONS = "https://data.sec.gov/submissions/CIK{cik:010d}.json"
 
     def __init__(self, user_agent: str = "",
-                 fetch: Optional[Callable[[str], str]] = None,
-                 cache_dir: Optional[str] = None):
+                 fetch: Callable[[str], str] | None = None,
+                 cache_dir: str | None = None):
         self._fetch = fetch or _http_fetch(user_agent)
         self.cache_dir = cache_dir
 
@@ -263,7 +264,7 @@ class SubmissionsEntityClassifier:
         if self.cache_dir:
             cpath = os.path.join(self.cache_dir, f"submissions_CIK{cik_int:010d}.json")
             if os.path.exists(cpath):
-                with open(cpath, "r", encoding="utf-8") as fh:
+                with open(cpath, encoding="utf-8") as fh:
                     return json.load(fh)
         doc = json.loads(self._fetch(self.SUBMISSIONS.format(cik=cik_int)))
         if self.cache_dir:
@@ -290,7 +291,7 @@ class SubmissionsEntityClassifier:
 
 
 def is_operating_company(info: EntityInfo, title: str = "",
-                         exclude_sic: Optional[dict[str, str]] = None
+                         exclude_sic: dict[str, str] | None = None
                          ) -> tuple[bool, str]:
     """(is_operating, reason_if_excluded).
 
