@@ -33,6 +33,7 @@ class EventType(str, Enum):
     RESTATEMENT = "RESTATEMENT"      # 8-K Item 4.02 non-reliance (seam)
     DELISTING = "DELISTING"          # 8-K Item 3.01 (seam)
     BANKRUPTCY = "BANKRUPTCY"        # 8-K Item 1.03 (seam)
+    REVERSE_SPLIT = "REVERSE_SPLIT"  # 8-K Item 5.03 charter amendment (reverse split)
 
 
 @dataclass(frozen=True)
@@ -134,6 +135,9 @@ _8K_ITEM_EVENTS = {
 _GC_RE = re.compile(r"substantial doubt[\s\S]{0,120}?going concern|"
                     r"going concern[\s\S]{0,120}?substantial doubt", re.I)
 _MW_RE = re.compile(r"material weakness(?:es)?", re.I)
+# A *reverse* split only (forward "N-for-1" splits are a strength signal, not
+# distress), so match the explicit phrase rather than a bare ratio.
+_RS_RE = re.compile(r"reverse\s+(?:stock\s+)?split", re.I)
 
 
 def detect_going_concern(text: str) -> bool:
@@ -145,6 +149,15 @@ def detect_going_concern(text: str) -> bool:
 def detect_material_weakness(text: str) -> bool:
     """True when filing prose reports a material weakness in internal control."""
     return bool(_MW_RE.search(text))
+
+
+def detect_reverse_split(text: str) -> bool:
+    """True when filing prose describes a reverse stock split (not a forward one).
+
+    Item 5.03 also covers fiscal-year changes and other charter amendments, so
+    the item number alone can't classify — this text confirm distinguishes a
+    reverse split from the rest, deterministically and with no LLM."""
+    return bool(_RS_RE.search(text))
 
 
 def _is_late_filing_form(form: str) -> bool:
@@ -233,6 +246,7 @@ class EdgarEventProvider:
 
         events: list[Event] = []
         latest_10k = None                       # recent[] is newest-first
+        rsplit_candidates: list[tuple[dt.date, str, str, str | None]] = []
         for i, raw_form in enumerate(forms):
             form = str(raw_form).strip()
             try:
@@ -254,6 +268,10 @@ class EdgarEventProvider:
                     if code in its:
                         events.append(Event(etype, filed, form, f"8-K Item {code}",
                                             accn, period, self.SOURCE))
+                # Item 5.03 covers any charter amendment; a reverse split needs a
+                # text confirm (below) to tell it apart from a fiscal-year change.
+                if "5.03" in its and accn:
+                    rsplit_candidates.append((filed, accn, doc_at(i), period))
             if form in ("10-K", "10-K/A") and latest_10k is None:
                 latest_10k = (filed, accn, doc_at(i), period)
 
@@ -273,4 +291,18 @@ class EdgarEventProvider:
                 events.append(Event(EventType.MATERIAL_WEAKNESS, filed, "10-K",
                                     "material weakness in ICFR", accn, period,
                                     self.SOURCE))
+        # Confirm reverse splits by scanning each Item-5.03 8-K's text (gated by
+        # the same scan switch as the 10-K going-concern / material-weakness scan).
+        if self.scan_10k:
+            for rs_filed, rs_accn, rs_doc, rs_period in rsplit_candidates:
+                if not rs_doc:
+                    continue
+                try:
+                    text = self._filing_text().fetch_filing_text(cik, rs_accn, rs_doc)
+                except Exception:
+                    text = ""
+                if detect_reverse_split(text):
+                    events.append(Event(EventType.REVERSE_SPLIT, rs_filed, "8-K",
+                                        "Item 5.03 reverse stock split", rs_accn,
+                                        rs_period, self.SOURCE))
         return EventSet(ticker.upper(), str(cik), events)

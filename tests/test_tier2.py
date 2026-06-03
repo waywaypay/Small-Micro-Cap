@@ -4,8 +4,9 @@ import os
 
 from landmine.config import Config
 from landmine.data.provider import FixtureProvider
-from landmine.events import EventType, FixtureEventProvider
+from landmine.events import Event, EventsView, EventType, FixtureEventProvider
 from landmine.models import Severity, Status
+from landmine.rules_t2 import ReverseSplitRule
 from landmine.scoring import score_company
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -87,6 +88,68 @@ def test_auditor_change_flags_on_recent_8k():
 def test_delisting_flags_for_cenn():
     card = _card("CENN", "0001707919", dt.date(2026, 6, 2))
     assert _res(card, "T2_DELISTING").status is Status.FLAG
+
+
+def test_reverse_split_flags_for_cenn():
+    # CENN effected a 1-for-10 reverse split (8-K Item 5.03) after its delisting
+    # notice. A single split reads MEDIUM; the citation traces to the 8-K.
+    card = _card("CENN", "0001707919", dt.date(2026, 6, 2))
+    rs = _res(card, "T2_REVERSE_SPLIT")
+    assert rs.status is Status.FLAG and rs.severity is Severity.MEDIUM
+    assert rs.citations[0].form == "8-K" and rs.citations[0].accession
+
+
+def test_reverse_split_closes_the_r1_blind_spot():
+    # A reverse split is a share *decrease*, so it can never trip R1 (YoY growth);
+    # on the split-noisy MCP-derived share series R1 returns INSUFFICIENT_DATA.
+    # The Tier-2 event surfaces what R1 structurally cannot — purely additive.
+    card = _card("CENN", "0001707919", dt.date(2026, 6, 2))
+    assert _res(card, "R1_DILUTION").status is not Status.FLAG
+    assert _res(card, "T2_REVERSE_SPLIT").status is Status.FLAG
+
+
+def test_reverse_split_is_point_in_time():
+    # The 2025-09-15 reverse-split 8-K is invisible the day before, flags after,
+    # and ages out beyond the ~3-year window.
+    before = _res(_card("CENN", "0001707919", dt.date(2025, 9, 14)),
+                  "T2_REVERSE_SPLIT")
+    after = _res(_card("CENN", "0001707919", dt.date(2025, 9, 15)),
+                 "T2_REVERSE_SPLIT")
+    aged = _res(_card("CENN", "0001707919", dt.date(2029, 1, 1)),
+                "T2_REVERSE_SPLIT")
+    assert before.status is Status.PASS
+    assert after.status is Status.FLAG
+    assert aged.status is Status.PASS
+
+
+def test_reverse_split_severity_escalates_with_count():
+    # Serial reverse-splitting is the death-spiral signature: 1 -> MEDIUM,
+    # 2 -> HIGH, 3 -> CRITICAL. Built in-memory to isolate the escalation.
+    rule = ReverseSplitRule()
+    rc = CFG.rule("T2_REVERSE_SPLIT")
+    as_of = dt.date(2026, 6, 2)
+
+    def result_for(n):
+        evs = [Event(type=EventType.REVERSE_SPLIT, filed=dt.date(2026 - k, 6, 1),
+                     form="8-K", detail=f"1-for-10 #{k}") for k in range(n)]
+        return rule.evaluate(EventsView(as_of, evs), rc)
+
+    one, two, three = result_for(1), result_for(2), result_for(3)
+    assert one.status is Status.FLAG and one.severity is Severity.MEDIUM
+    assert two.severity is Severity.HIGH
+    assert three.severity is Severity.CRITICAL
+    assert one.computed_value == 1 and three.computed_value == 3
+    assert one.severity_score <= two.severity_score <= three.severity_score
+    assert one.reason == "T2_REVERSE_SPLIT" and two.reason == "T2_SERIAL_REVERSE_SPLIT"
+
+
+def test_reverse_split_corroborates_cash_runway():
+    # A reverse split is independent Tier-2 confirmation of distress, so it shows
+    # up in the cash-runway flag's corroboration set.
+    card = _card("CENN", "0001707919", dt.date(2026, 6, 2))
+    r2 = _res(card, "R2_CASH_RUNWAY")
+    assert r2.status is Status.FLAG
+    assert "REVERSE_SPLIT" in r2.raw_values["corroboration"]["by"]
 
 
 def test_delisting_is_point_in_time():

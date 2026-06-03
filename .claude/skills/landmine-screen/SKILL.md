@@ -7,8 +7,8 @@ description: >-
   screen", wants a distress scorecard, or asks whether a company shows
   going-concern, heavy dilution, short cash runway, negative equity, liquidity
   stress, low earnings quality, restatements, auditor changes, delisting
-  notices, late filings, or worrying filing language. Deterministic, auditable,
-  as-of any historical date.
+  notices, reverse splits, late filings, or worrying filing language.
+  Deterministic, auditable, as-of any historical date.
 ---
 
 # Landmine screen
@@ -19,8 +19,8 @@ stock-picking. Three tiers, run via the `landmine` CLI in this repo.
 - **Tier 1 — numeric** (XBRL): dilution, cash runway, negative equity, liquidity,
   earnings-quality accruals.
 - **Tier 2 — events** (filing metadata): going concern, material weakness,
-  restatement, auditor change, delisting, bankruptcy, late filings, offering
-  clusters.
+  restatement, auditor change, delisting, bankruptcy, reverse splits, late
+  filings, offering clusters.
 - **Tier 3 — language** (LLM, **advisory only**): soft risks from filing prose.
 
 Tiers 1–2 are the **deterministic, reproducible, auditable score**. Tier 3 is
