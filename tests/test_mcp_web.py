@@ -10,7 +10,7 @@ import asyncio
 import pytest
 
 pytest.importorskip("mcp")
-from landmine_mcp import web  # noqa: E402
+from landmine_mcp import server, web  # noqa: E402
 
 
 def _drive(path="/mcp", method="POST", headers=None):
@@ -113,3 +113,24 @@ def test_options_to_mcp_is_gated(monkeypatch):
     monkeypatch.setenv("LANDMINE_MCP_TOKEN", "s3cret")
     status, _ = _drive(path="/mcp", method="OPTIONS")
     assert status == 401
+
+
+# ---- transport security (DNS-rebinding / Host allowlist) -------------------
+# FastMCP's default Host allowlist is localhost-only, which 421/403s every
+# request to a public deployment; these pin the env-driven posture that lets the
+# deployed host through while keeping an opt-in allowlist.
+
+def test_transport_security_default_protection_off(monkeypatch):
+    # Unset -> protection disabled so a public host isn't rejected by default.
+    monkeypatch.delenv("LANDMINE_MCP_ALLOWED_HOSTS", raising=False)
+    s = server._transport_security()
+    assert s.enable_dns_rebinding_protection is False
+
+
+def test_transport_security_allowlist_from_env(monkeypatch):
+    # Set -> protection on with the parsed hosts (blank entries dropped).
+    monkeypatch.setenv("LANDMINE_MCP_ALLOWED_HOSTS",
+                       "landmine-mcp.onrender.com, localhost:* , ")
+    s = server._transport_security()
+    assert s.enable_dns_rebinding_protection is True
+    assert s.allowed_hosts == ["landmine-mcp.onrender.com", "localhost:*"]
