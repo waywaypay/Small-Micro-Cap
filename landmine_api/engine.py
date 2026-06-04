@@ -10,6 +10,8 @@ from __future__ import annotations
 import datetime as dt
 import os
 import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from functools import lru_cache
 
@@ -55,6 +57,11 @@ class Settings:
     # higher ceiling for the background (async) job path — a full-market sweep
     # can't fit one synchronous request, so it runs as a job instead.
     max_universe_async: int = 3000
+    # Concurrency for the live screen: the per-name SEC fetch dominates, so screen
+    # names in a bounded thread pool instead of one-at-a-time. Paced by sec_rps so
+    # the pool never exceeds SEC's ~10 req/s fair-access limit.
+    screen_workers: int = 8
+    sec_rps: float = 9.0
     config_path: str = _path("config", "thresholds.yaml")
     universe_path: str = _path("config", "universe.yaml")
     fixtures_dir: str = _path("tests", "fixtures", "raw")
@@ -75,6 +82,8 @@ class Settings:
             max_universe=int(os.environ.get("LANDMINE_MAX_UNIVERSE", "250")),
             max_universe_async=int(
                 os.environ.get("LANDMINE_MAX_UNIVERSE_ASYNC", "3000")),
+            screen_workers=int(os.environ.get("LANDMINE_SCREEN_WORKERS", "8")),
+            sec_rps=float(os.environ.get("LANDMINE_SEC_RPS", "9")),
         )
 
     @property
@@ -183,10 +192,37 @@ def resolve_ciks(tickers: list[str], settings: Settings) -> dict[str, str]:
 
 # ---- screening -------------------------------------------------------------
 
+class _RateLimiter:
+    """Thread-safe pacer: spaces calls to at most ``rps`` per second.
+
+    Shared across the screen's worker threads so the bounded pool never exceeds
+    SEC's fair-access limit, no matter how many workers race for a slot. A
+    non-positive rate disables pacing (the fixture/offline path needs none).
+    """
+
+    def __init__(self, rps: float):
+        self._interval = 1.0 / rps if rps and rps > 0 else 0.0
+        self._lock = threading.Lock()
+        self._next = 0.0
+
+    def acquire(self) -> None:
+        if self._interval <= 0:
+            return
+        with self._lock:
+            now = time.monotonic()
+            wait = self._next - now
+            if wait > 0:
+                time.sleep(wait)
+            self._next = max(now, self._next) + self._interval
+
+
 def _score_one(ticker: str, cik: str | None, as_of: dt.date, cfg: Config,
-               provider, eprov, settings: Settings):
+               provider, eprov, settings: Settings,
+               limiter: _RateLimiter | None = None):
     """Score one company, falling back to fixtures when a live fetch fails."""
     try:
+        if limiter is not None:
+            limiter.acquire()       # pace the live SEC fetch across workers
         facts = provider.get_company_facts(ticker, cik)
     except Exception:
         # Resilience: if the live path errors (no egress, 404, throttle) and a
@@ -209,10 +245,27 @@ def screen(ticker_to_cik: dict[str, str], as_of: dt.date,
     cfg = _load_config(settings.config_path)
     provider = _facts_provider(settings)
     eprov = _events_provider(settings)
-    cards = [
-        _score_one(t, cik, as_of, cfg, provider, eprov, settings)
-        for t, cik in sorted(ticker_to_cik.items())
-    ]
+    items = sorted(ticker_to_cik.items())
+
+    # The per-name SEC fetch dominates wall time, so on the live path screen the
+    # names concurrently (bounded pool, globally rate-limited). The fixture/offline
+    # path has no network, so it stays sequential — deterministic and fast.
+    live = settings.effective_source == "companyfacts"
+    if live and settings.screen_workers > 1 and len(items) > 1:
+        limiter = _RateLimiter(settings.sec_rps)
+
+        def _work(item: tuple[str, str]):
+            t, cik = item
+            return _score_one(t, cik, as_of, cfg, provider, eprov, settings, limiter)
+
+        workers = min(settings.screen_workers, len(items))
+        with ThreadPoolExecutor(max_workers=workers) as ex:
+            cards = list(ex.map(_work, items))   # ex.map preserves input order
+    else:
+        cards = [
+            _score_one(t, cik, as_of, cfg, provider, eprov, settings)
+            for t, cik in items
+        ]
     return scorecards_to_payload(cards, cfg)
 
 
