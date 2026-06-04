@@ -433,6 +433,19 @@ Configuration (all via env):
   (default on).
 - `LANDMINE_MAX_UNIVERSE` — cap on names a single `/universe` request will
   fetch + score (default 250), so a wide cap band can't run away.
+- `LANDMINE_SCREEN_WORKERS` — threads the screen fans out across (default 8).
+  Fetches are I/O-bound (one SEC request per name) and scoring is pure, so the
+  band is screened concurrently; output is re-sorted by ticker and stays
+  byte-identical to the serial path.
+- `LANDMINE_SEC_MIN_INTERVAL_S` — minimum spacing between SEC requests (default
+  0.12s ≈ 8/s, under SEC's ~10/s ceiling). Enforced **process-globally**, so
+  adding workers speeds up the screen without breaching fair-access.
+- `LANDMINE_PUBLIC_FLOAT_LOOKBACK_Q` — how many recent quarterly-instant
+  `dei:EntityPublicFloat` frames to merge when sizing the universe (default 8).
+  `/universe` now sizes the whole market from SEC's *frames* API in a handful of
+  calls (latest period-end ≤ `as_of` wins per filer) instead of one companyfacts
+  fetch per filer; it falls back to the per-company float path if frames are
+  unreachable.
 
 ### Deploy to Render (free tier)
 

@@ -10,6 +10,7 @@ from __future__ import annotations
 import datetime as dt
 import os
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import Optional
@@ -19,7 +20,8 @@ from landmine.data.provider import FixtureProvider, HttpCompanyFactsProvider
 from landmine.persistence import scorecards_to_payload
 from landmine.scoring import score_company
 from landmine.universe import (PublicFloatSizeProvider, StaticSizeProvider,
-                               build_universe, load_company_tickers)
+                               build_universe, fetch_public_float_frames,
+                               load_company_tickers)
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -49,6 +51,11 @@ class Settings:
     enable_events: bool = True
     # safety cap on how many names a single /universe screen will fetch+score.
     max_universe: int = 250
+    # screening fan-out + SEC fair-access request spacing (process-global).
+    screen_workers: int = 8
+    sec_min_interval_s: float = 0.12
+    # how many recent quarterly-instant frames to merge when bulk-sizing.
+    public_float_lookback_quarters: int = 8
     config_path: str = _path("config", "thresholds.yaml")
     universe_path: str = _path("config", "universe.yaml")
     fixtures_dir: str = _path("tests", "fixtures", "raw")
@@ -67,6 +74,11 @@ class Settings:
             enable_events=os.environ.get("LANDMINE_ENABLE_EVENTS", "1") not in
             ("0", "false", "False", ""),
             max_universe=int(os.environ.get("LANDMINE_MAX_UNIVERSE", "250")),
+            screen_workers=int(os.environ.get("LANDMINE_SCREEN_WORKERS", "8")),
+            sec_min_interval_s=float(
+                os.environ.get("LANDMINE_SEC_MIN_INTERVAL_S", "0.12")),
+            public_float_lookback_quarters=int(
+                os.environ.get("LANDMINE_PUBLIC_FLOAT_LOOKBACK_Q", "8")),
         )
 
     @property
@@ -103,7 +115,8 @@ def _facts_provider(settings: Settings):
                 status_code=503)
         return HttpCompanyFactsProvider(
             user_agent=settings.sec_user_agent,
-            cache_dir=settings.cache_dir or None)
+            cache_dir=settings.cache_dir or None,
+            min_interval_s=settings.sec_min_interval_s)
     return FixtureProvider(settings.fixtures_dir)
 
 
@@ -200,10 +213,22 @@ def screen(ticker_to_cik: dict[str, str], as_of: dt.date,
     cfg = _load_config(settings.config_path)
     provider = _facts_provider(settings)
     eprov = _events_provider(settings)
-    cards = [
-        _score_one(t, cik, as_of, cfg, provider, eprov, settings)
-        for t, cik in sorted(ticker_to_cik.items())
-    ]
+    items = sorted(ticker_to_cik.items())
+    workers = max(1, settings.screen_workers)
+    if workers == 1 or len(items) <= 1:
+        cards = [_score_one(t, cik, as_of, cfg, provider, eprov, settings)
+                 for t, cik in items]
+    else:
+        # Each name is one I/O-bound SEC fetch and the scoring is pure, so fan
+        # the band out across threads. Fair-access spacing is enforced
+        # process-globally in the provider, so more workers never breach SEC's
+        # rate ceiling; ``scorecards_to_payload`` re-sorts by ticker, so the
+        # result is byte-identical to the serial path regardless of finish order.
+        with ThreadPoolExecutor(max_workers=workers) as ex:
+            cards = list(ex.map(
+                lambda it: _score_one(it[0], it[1], as_of, cfg, provider,
+                                      eprov, settings),
+                items))
     return scorecards_to_payload(cards, cfg)
 
 
@@ -224,10 +249,22 @@ def build_and_screen_universe(min_cap: float, max_cap: float, as_of: dt.date,
     # Records: live SEC list when available, otherwise the frozen fixture list.
     if settings.effective_source == "companyfacts" and settings.sec_user_agent:
         records = load_company_tickers(user_agent=settings.sec_user_agent)
-        size = PublicFloatSizeProvider(
-            HttpCompanyFactsProvider(user_agent=settings.sec_user_agent,
-                                     cache_dir=settings.cache_dir or None),
-            as_of)
+        # Size the whole market in a handful of SEC "frames" calls instead of
+        # one companyfacts fetch per filer just to read its public float.
+        bulk = fetch_public_float_frames(
+            as_of, user_agent=settings.sec_user_agent,
+            lookback_quarters=settings.public_float_lookback_quarters)
+        if bulk:
+            size = StaticSizeProvider(bulk)
+        else:
+            # Frames unreachable: degrade to the per-company float path (slower)
+            # rather than returning an empty universe.
+            size = PublicFloatSizeProvider(
+                HttpCompanyFactsProvider(
+                    user_agent=settings.sec_user_agent,
+                    cache_dir=settings.cache_dir or None,
+                    min_interval_s=settings.sec_min_interval_s),
+                as_of)
     else:
         path = settings.company_tickers_fixture
         records = load_company_tickers(

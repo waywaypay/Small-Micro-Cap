@@ -23,6 +23,8 @@ from typing import Callable, Optional, Protocol
 from .concepts import PUBLIC_FLOAT
 
 COMPANY_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
+PUBLIC_FLOAT_FRAMES_URL = (
+    "https://data.sec.gov/api/xbrl/frames/dei/EntityPublicFloat/USD/{period}.json")
 
 
 @dataclass(frozen=True)
@@ -93,6 +95,61 @@ class PublicFloatSizeProvider:
             return None
         rf = facts.as_of(self.as_of).latest(PUBLIC_FLOAT)
         return rf.value if rf else None
+
+
+def _instant_frame_periods(as_of: dt.date, lookback_quarters: int = 8) -> list[str]:
+    """SEC quarterly-instant frame ids (``CYyyyyQ#I``) with quarter-end on or
+    before ``as_of``, oldest first, capped to the most recent ``lookback_quarters``.
+
+    ``EntityPublicFloat`` is an instant fact filed on the 10-K cover, so filers
+    with different fiscal years land in different calendar quarters; merging a
+    couple of years of quarters catches essentially every recent annual filer.
+    """
+    quarter_ends = [(1, 3, 31), (2, 6, 30), (3, 9, 30), (4, 12, 31)]
+    periods: list[tuple[dt.date, str]] = []
+    earliest_year = as_of.year - (lookback_quarters // 4 + 2)
+    for year in range(earliest_year, as_of.year + 1):
+        for q, month, day in quarter_ends:
+            end = dt.date(year, month, day)
+            if end <= as_of:
+                periods.append((end, f"CY{year}Q{q}I"))
+    periods.sort()
+    return [pid for _, pid in periods[-lookback_quarters:]]
+
+
+def fetch_public_float_frames(as_of: dt.date,
+                              fetch: Optional[Callable[[str], str]] = None,
+                              user_agent: str = "",
+                              lookback_quarters: int = 8) -> dict[str, float]:
+    """Bulk ``{cik: EntityPublicFloat}`` from SEC's frames API.
+
+    One request per recent quarter (a handful total) returns *every* filer's
+    public float for that period — versus one companyfacts fetch per filer just
+    to read the same number. For each CIK the latest period-end on/before
+    ``as_of`` wins, so it honours point-in-time and picks up restatements.
+    Returns ``{}`` if no frame is reachable, so callers can fall back to the
+    per-company path rather than getting an empty universe.
+    """
+    fetch = fetch or _http_fetch(user_agent)
+    latest: dict[str, tuple[dt.date, float]] = {}
+    for period in _instant_frame_periods(as_of, lookback_quarters):  # oldest->newest
+        try:
+            data = json.loads(fetch(PUBLIC_FLOAT_FRAMES_URL.format(period=period)))
+        except Exception:
+            continue  # missing/unreachable frame — skip; other quarters still count
+        for row in data.get("data", []):
+            try:
+                cik = f"{int(row['cik']):010d}"
+                end = dt.date.fromisoformat(row["end"])
+                val = float(row["val"])
+            except (KeyError, ValueError, TypeError):
+                continue
+            if end > as_of:
+                continue  # look-ahead guard
+            cur = latest.get(cik)
+            if cur is None or end >= cur[0]:
+                latest[cik] = (end, val)
+    return {cik: val for cik, (_, val) in latest.items()}
 
 
 def build_universe(records: list[TickerRecord], size: SizeProvider,

@@ -8,7 +8,8 @@ import yaml
 from landmine.data.facts import CompanyFacts
 from landmine.data.provider import facts_from_companyfacts
 from landmine.universe import (PublicFloatSizeProvider, StaticSizeProvider,
-                              build_universe, load_company_tickers,
+                              _instant_frame_periods, build_universe,
+                              fetch_public_float_frames, load_company_tickers,
                               write_universe_yaml)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -57,3 +58,40 @@ def test_written_yaml_is_loadable_as_a_universe(tmp_path):
     write_universe_yaml({"BYND": "0001655210", "AMC": "0001411579"}, out, note="t")
     loaded = yaml.safe_load(open(out))["universe"]
     assert loaded == {"BYND": "0001655210", "AMC": "0001411579"}
+
+
+def test_instant_frame_periods_recent_and_point_in_time():
+    assert _instant_frame_periods(dt.date(2026, 6, 4), lookback_quarters=4) == [
+        "CY2025Q2I", "CY2025Q3I", "CY2025Q4I", "CY2026Q1I"]
+    # a quarter-end after as_of (Q2 ends 6-30) is never requested — no look-ahead
+    assert "CY2026Q2I" not in _instant_frame_periods(dt.date(2026, 6, 4), 8)
+
+
+def test_fetch_public_float_frames_merges_latest_and_honours_as_of():
+    # One call per quarter returns every filer; the later period-end wins per CIK
+    # and a row dated after as_of is dropped.
+    frames = {
+        "CY2025Q4I": {"data": [
+            {"cik": 1425287, "end": "2025-12-31", "val": 120_000_000},
+            {"cik": 1411579, "end": "2025-12-31", "val": 800_000_000},
+        ]},
+        "CY2026Q1I": {"data": [
+            {"cik": 1425287, "end": "2026-03-31", "val": 95_000_000},   # newer wins
+            {"cik": 9999999, "end": "2026-09-30", "val": 5_000_000},    # after as_of
+        ]},
+    }
+
+    def fake_fetch(url):
+        for period, doc in frames.items():
+            if period in url:
+                return json.dumps(doc)
+        return json.dumps({"data": []})
+
+    sizes = fetch_public_float_frames(dt.date(2026, 6, 4), fetch=fake_fetch,
+                                      lookback_quarters=2)
+    assert sizes["0001425287"] == 95_000_000      # Q1-2026 overrode Q4-2025
+    assert sizes["0001411579"] == 800_000_000
+    assert "0009999999" not in sizes              # period-end after as_of dropped
+    # and it drops straight into the existing size machinery:
+    uni = build_universe(_records(), StaticSizeProvider(sizes), 50e6, 2e9)
+    assert uni.get("WKHS") == "0001425287"

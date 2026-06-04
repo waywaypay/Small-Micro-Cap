@@ -19,11 +19,33 @@ from __future__ import annotations
 
 import datetime as dt
 import os
+import threading
+import time
 from typing import Optional, Protocol
 
 from ..concepts import GAAP_ALIASES, INSTANT_CONCEPTS
 from .facts import CompanyFacts, Fact
 from .mcp_parser import parse_mcp_text
+
+# ---- SEC fair-access throttle ---------------------------------------------
+# SEC limits clients to ~10 requests/second per IP. The universe screen fans
+# out across worker threads, so spacing must be enforced *process-globally*,
+# not per-call: each caller reserves the next time slot under a lock, releases
+# the lock, then sleeps until its slot. N threads therefore still issue at most
+# one request per ``min_interval_s`` in aggregate, never breaching the ceiling.
+_sec_rate_lock = threading.Lock()
+_sec_next_allowed = 0.0
+
+
+def _sec_throttle(min_interval_s: float) -> None:
+    global _sec_next_allowed
+    with _sec_rate_lock:
+        now = time.monotonic()
+        slot = now if now > _sec_next_allowed else _sec_next_allowed
+        _sec_next_allowed = slot + min_interval_s
+    delay = slot - time.monotonic()
+    if delay > 0:
+        time.sleep(delay)
 
 
 class FactsProvider(Protocol):
@@ -70,7 +92,6 @@ class HttpCompanyFactsProvider:
 
     def _fetch_json(self, cik: str) -> dict:
         import json
-        import time
         import urllib.request
 
         cik_int = int(cik)
@@ -81,7 +102,7 @@ class HttpCompanyFactsProvider:
                     return json.load(fh)
         url = self.BASE.format(cik=cik_int)
         req = urllib.request.Request(url, headers={"User-Agent": self.user_agent})
-        time.sleep(self.min_interval_s)  # fair-access throttle
+        _sec_throttle(self.min_interval_s)  # process-global fair-access throttle
         with urllib.request.urlopen(req, timeout=30) as resp:
             data = json.loads(resp.read().decode("utf-8"))
         if self.cache_dir:
