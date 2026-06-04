@@ -240,32 +240,52 @@ def _score_one(ticker: str, cik: str | None, as_of: dt.date, cfg: Config,
     return score_company(facts, as_of, cfg, events=events)
 
 
+def _run_screen(items: list[tuple[str, str]], as_of: dt.date, cfg: Config,
+                provider, eprov, settings: Settings,
+                skip_errors: bool) -> tuple[list, list[dict]]:
+    """Score ``items`` (concurrently on the live path); return (cards, skipped).
+
+    When ``skip_errors`` (the universe sweep), a name with no usable facts is
+    recorded in ``skipped`` and the run continues — one missing SPAC/new filer
+    must not abort a 1,900-name screen. When False (explicit /run), the error
+    propagates so the caller sees exactly which requested ticker failed.
+    """
+    # Pace live SEC calls across workers; no limiter needed off the network.
+    limiter = (_RateLimiter(settings.sec_rps)
+               if settings.effective_source == "companyfacts" else None)
+
+    def _work(item: tuple[str, str]):
+        t, cik = item
+        try:
+            return ("ok", _score_one(t, cik, as_of, cfg, provider, eprov,
+                                     settings, limiter))
+        except Exception as exc:
+            if skip_errors:
+                return ("skip", (t, str(exc)))
+            raise
+
+    live = settings.effective_source == "companyfacts"
+    if live and settings.screen_workers > 1 and len(items) > 1:
+        workers = min(settings.screen_workers, len(items))
+        with ThreadPoolExecutor(max_workers=workers) as ex:
+            results = list(ex.map(_work, items))   # ex.map preserves input order
+    else:
+        results = [_work(it) for it in items]
+
+    cards = [payload for tag, payload in results if tag == "ok"]
+    skipped = [{"ticker": payload[0], "error": payload[1]}
+               for tag, payload in results if tag == "skip"]
+    return cards, skipped
+
+
 def screen(ticker_to_cik: dict[str, str], as_of: dt.date,
            settings: Settings) -> list[dict]:
     cfg = _load_config(settings.config_path)
     provider = _facts_provider(settings)
     eprov = _events_provider(settings)
     items = sorted(ticker_to_cik.items())
-
-    # The per-name SEC fetch dominates wall time, so on the live path screen the
-    # names concurrently (bounded pool, globally rate-limited). The fixture/offline
-    # path has no network, so it stays sequential — deterministic and fast.
-    live = settings.effective_source == "companyfacts"
-    if live and settings.screen_workers > 1 and len(items) > 1:
-        limiter = _RateLimiter(settings.sec_rps)
-
-        def _work(item: tuple[str, str]):
-            t, cik = item
-            return _score_one(t, cik, as_of, cfg, provider, eprov, settings, limiter)
-
-        workers = min(settings.screen_workers, len(items))
-        with ThreadPoolExecutor(max_workers=workers) as ex:
-            cards = list(ex.map(_work, items))   # ex.map preserves input order
-    else:
-        cards = [
-            _score_one(t, cik, as_of, cfg, provider, eprov, settings)
-            for t, cik in items
-        ]
+    cards, _ = _run_screen(items, as_of, cfg, provider, eprov, settings,
+                           skip_errors=False)
     return scorecards_to_payload(cards, cfg)
 
 
@@ -313,9 +333,19 @@ def build_and_screen_universe(min_cap: float, max_cap: float, as_of: dt.date,
             f"Universe has {len(universe)} names (cap {cap}); "
             f"narrow the cap band or raise LANDMINE_MAX_UNIVERSE",
             status_code=413)
-    scorecards = screen(universe, as_of, settings)
+
+    # Per-name error isolation: a universe sweep always hits names with no usable
+    # XBRL (new SPACs/IPOs, funds, foreign filers). Skip those and report them,
+    # rather than letting one missing filer 502 the whole job.
+    cfg = _load_config(settings.config_path)
+    provider = _facts_provider(settings)
+    eprov = _events_provider(settings)
+    cards, skipped = _run_screen(sorted(universe.items()), as_of, cfg, provider,
+                                 eprov, settings, skip_errors=True)
     return {
         "universe": dict(sorted(universe.items())),
         "count": len(universe),
-        "scorecards": scorecards,
+        "screened": len(cards),
+        "skipped": skipped,
+        "scorecards": scorecards_to_payload(cards, cfg),
     }

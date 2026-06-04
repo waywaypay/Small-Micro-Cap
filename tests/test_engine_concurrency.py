@@ -9,7 +9,11 @@ import datetime as dt
 import os
 import time
 
+import pytest
+
+from landmine.config import Config
 from landmine.data.provider import FixtureProvider
+from landmine.events import FixtureEventProvider
 from landmine_api import engine
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -59,3 +63,33 @@ def test_concurrent_screen_matches_sequential(monkeypatch):
     # Identical payloads, identical order — concurrency is a pure speedup.
     assert out_par == out_seq
     assert [c["ticker"] for c in out_par] == [c["ticker"] for c in out_seq]
+
+
+def _cfg_and_providers():
+    cfg = Config.load(os.path.join(ROOT, "config", "thresholds.yaml"))
+    fp = FixtureProvider(os.path.join(ROOT, "tests", "fixtures", "raw"))
+    ep = FixtureEventProvider(os.path.join(ROOT, "tests", "fixtures", "events"))
+    return cfg, fp, ep
+
+
+def test_run_screen_skips_missing_names_when_isolated():
+    # A universe sweep must not abort on a name with no facts (e.g. a new SPAC).
+    cfg, fp, ep = _cfg_and_providers()
+    settings = engine.Settings(source="fixture")
+    items = sorted({**_fixture_universe(), "BADX": "0000000001"}.items())
+
+    cards, skipped = engine._run_screen(items, AS_OF, cfg, fp, ep, settings,
+                                        skip_errors=True)
+    # _run_screen returns raw Scorecard objects (payload conversion is later).
+    assert {c.ticker for c in cards} == {"WKHS", "BYND", "AMC"}
+    assert [s["ticker"] for s in skipped] == ["BADX"]
+    assert "BADX" in skipped[0]["error"]
+
+
+def test_run_screen_raises_without_isolation():
+    # Explicit /run keeps strict behaviour: a bad name surfaces as an error.
+    cfg, fp, ep = _cfg_and_providers()
+    settings = engine.Settings(source="fixture")
+    items = [("BADX", "0000000001")]
+    with pytest.raises(engine.ScreenError):
+        engine._run_screen(items, AS_OF, cfg, fp, ep, settings, skip_errors=False)
