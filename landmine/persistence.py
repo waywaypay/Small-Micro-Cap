@@ -93,15 +93,23 @@ def write_sqlite(cards: Iterable[Scorecard], cfg: Config, db_path: str) -> None:
         con.close()
 
 
-def scorecards_to_json(cards: Iterable[Scorecard], cfg: Config) -> str:
-    """Canonical JSON for all scorecards — the determinism artifact."""
-    cards = sorted(cards, key=lambda c: c.ticker)
+def scorecards_to_payload(cards: Iterable[Scorecard], cfg: Config) -> list[dict]:
+    """List of scorecard dicts (each with ``weighted_total``), ticker-sorted.
+
+    The in-memory form behind both the canonical JSON artifact and the API
+    response, so the CLI and the service emit byte-identical scorecards.
+    """
     payload = []
-    for card in cards:
+    for card in sorted(cards, key=lambda c: c.ticker):
         d = card.to_dict()
         d["weighted_total"] = weighted_total(card, cfg)
         payload.append(d)
-    return json.dumps(payload, sort_keys=True, indent=2)
+    return payload
+
+
+def scorecards_to_json(cards: Iterable[Scorecard], cfg: Config) -> str:
+    """Canonical JSON for all scorecards — the determinism artifact."""
+    return json.dumps(scorecards_to_payload(cards, cfg), sort_keys=True, indent=2)
 
 
 def write_json(cards: Iterable[Scorecard], cfg: Config, path: str) -> None:
