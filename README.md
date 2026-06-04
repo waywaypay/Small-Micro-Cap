@@ -525,6 +525,13 @@ is screening each name, which is why it runs as a background job. The sync route
 is capped by `LANDMINE_MAX_UNIVERSE` (default 250); the job by
 `LANDMINE_MAX_UNIVERSE_ASYNC` (default 3000).
 
+On the live path the screen fetches names **concurrently** in a bounded pool —
+the per-name SEC download dominates, so this is the main speedup (a full sweep
+drops from ~11 min sequential to ~3 min). It's paced by a shared rate limiter so
+the pool never exceeds SEC's fair-access limit: `LANDMINE_SCREEN_WORKERS`
+(default 8) and `LANDMINE_SEC_RPS` (default 9). The offline/fixture path stays
+sequential and deterministic.
+
 ### Local stdio (Claude Desktop / IDEs)
 
 ```bash
