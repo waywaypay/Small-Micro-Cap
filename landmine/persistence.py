@@ -3,8 +3,11 @@
 Two outputs per run:
 
 * SQLite — one ``findings`` row per (ticker, as_of, rule) with raw values,
-  threshold, severity, and citation, plus a per-ticker ``rollup`` row. Rows are
-  written in a fixed order and the DB is rebuilt each run, so it is stable.
+  threshold, severity, and citation, plus a per-ticker ``rollup`` row. The DB
+  accumulates across runs: each run upserts (delete-then-insert) its
+  ``(ticker, as_of)`` slices, so one file is a point-in-time history you can
+  query by date without re-screening. Re-running a date replaces exactly that
+  slice, so it stays clean and idempotent.
 * canonical JSON — ``json.dumps(..., sort_keys=True)`` of every scorecard. This
   is the byte-for-byte reproducibility artifact the determinism test compares.
 
@@ -58,19 +61,33 @@ def _canonical(obj) -> str:
 
 
 def write_sqlite(cards: Iterable[Scorecard], cfg: Config, db_path: str) -> None:
+    """Upsert each scorecard into a persistent point-in-time store.
+
+    The DB is created if absent and otherwise left in place. Writing a run for
+    one ``as_of`` replaces exactly that date's slice for each ticker screened
+    (a clean re-run — rules that no longer fire are dropped) while leaving every
+    other ``(ticker, as_of)`` slice untouched, so a single file builds up real
+    history you can query by date without re-screening. The whole write is one
+    transaction: on error nothing is committed and prior history is preserved.
+    """
     cards = sorted(cards, key=lambda c: c.ticker)
-    if os.path.exists(db_path):
-        os.remove(db_path)            # rebuild for a clean, deterministic file
     os.makedirs(os.path.dirname(db_path) or ".", exist_ok=True)
     con = sqlite3.connect(db_path)
     try:
         con.executescript(_SCHEMA)
         for card in cards:
+            as_of = card.as_of.isoformat()
+            # Replace this (ticker, as_of) slice in place: a re-run of the same
+            # date stays clean and idempotent without disturbing other dates.
+            con.execute("DELETE FROM findings WHERE ticker=? AND as_of_date=?",
+                        (card.ticker, as_of))
+            con.execute("DELETE FROM rollup WHERE ticker=? AND as_of_date=?",
+                        (card.ticker, as_of))
             for r in card.results:
                 con.execute(
                     "INSERT INTO findings VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (
-                        card.ticker, card.cik, card.as_of.isoformat(), r.rule_code,
+                        card.ticker, card.cik, as_of, r.rule_code,
                         r.status.value, 1 if r.status.value == "FLAG" else 0,
                         r.severity.value, round(r.severity_score, 6),
                         r.confidence.value, r.computed_value,
@@ -81,7 +98,7 @@ def write_sqlite(cards: Iterable[Scorecard], cfg: Config, db_path: str) -> None:
             con.execute(
                 "INSERT INTO rollup VALUES (?,?,?,?,?,?,?,?,?)",
                 (
-                    card.ticker, card.cik, card.as_of.isoformat(),
+                    card.ticker, card.cik, as_of,
                     card.num_flags, card.num_insufficient, card.max_severity.value,
                     card.total_score, weighted_total(card, cfg),
                     _canonical(card.flagged_rules),
