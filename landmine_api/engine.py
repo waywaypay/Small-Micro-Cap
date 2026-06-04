@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import Optional
 
+from landmine._parallel import parallel_map
 from landmine.config import Config
 from landmine.data.provider import FixtureProvider, HttpCompanyFactsProvider
 from landmine.persistence import scorecards_to_payload
@@ -48,7 +49,11 @@ class Settings:
     source: str = "auto"
     enable_events: bool = True
     # safety cap on how many names a single /universe screen will fetch+score.
-    max_universe: int = 250
+    max_universe: int = 3000
+    # fan-out width for the per-name SEC fetches (screen + size cut). The
+    # aggregate request rate stays under SEC fair-access via the shared limiter
+    # (LANDMINE_SEC_RPS); extra workers only overlap the round-trips.
+    max_workers: int = 8
     config_path: str = _path("config", "thresholds.yaml")
     universe_path: str = _path("config", "universe.yaml")
     fixtures_dir: str = _path("tests", "fixtures", "raw")
@@ -60,13 +65,17 @@ class Settings:
 
     @classmethod
     def from_env(cls) -> "Settings":
+        default_cache = _path("out", "companyfacts_cache")
         return cls(
             api_key=os.environ.get("API_KEY", ""),
             sec_user_agent=os.environ.get("SEC_USER_AGENT", ""),
             source=os.environ.get("LANDMINE_SOURCE", "auto").strip().lower(),
             enable_events=os.environ.get("LANDMINE_ENABLE_EVENTS", "1") not in
             ("0", "false", "False", ""),
-            max_universe=int(os.environ.get("LANDMINE_MAX_UNIVERSE", "250")),
+            max_universe=int(os.environ.get("LANDMINE_MAX_UNIVERSE", "3000")),
+            max_workers=max(1, int(os.environ.get("LANDMINE_MAX_WORKERS", "8"))),
+            cache_dir=os.environ.get("LANDMINE_CACHE_DIR", "").strip()
+            or default_cache,
         )
 
     @property
@@ -200,10 +209,12 @@ def screen(ticker_to_cik: dict[str, str], as_of: dt.date,
     cfg = _load_config(settings.config_path)
     provider = _facts_provider(settings)
     eprov = _events_provider(settings)
-    cards = [
-        _score_one(t, cik, as_of, cfg, provider, eprov, settings)
-        for t, cik in sorted(ticker_to_cik.items())
-    ]
+    # Sorted for a stable, deterministic order; parallel_map preserves it, so
+    # the payload is byte-identical to the single-worker path.
+    items = sorted(ticker_to_cik.items())
+    cards = parallel_map(
+        lambda tc: _score_one(tc[0], tc[1], as_of, cfg, provider, eprov, settings),
+        items, settings.max_workers)
     return scorecards_to_payload(cards, cfg)
 
 
@@ -238,7 +249,8 @@ def build_and_screen_universe(min_cap: float, max_cap: float, as_of: dt.date,
                    if not k.startswith("_")}
         size = StaticSizeProvider(raw)
 
-    universe = build_universe(records, size, min_cap, max_cap)
+    universe = build_universe(records, size, min_cap, max_cap,
+                              max_workers=settings.max_workers)
     if len(universe) > settings.max_universe:
         raise ScreenError(
             f"Universe has {len(universe)} names (cap {settings.max_universe}); "

@@ -20,6 +20,7 @@ import os
 from dataclasses import dataclass
 from typing import Callable, Optional, Protocol
 
+from ._parallel import parallel_map
 from .concepts import PUBLIC_FLOAT
 
 COMPANY_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
@@ -97,12 +98,20 @@ class PublicFloatSizeProvider:
 
 def build_universe(records: list[TickerRecord], size: SizeProvider,
                    min_cap: float, max_cap: float,
-                   include_unknown: bool = False) -> dict[str, str]:
+                   include_unknown: bool = False,
+                   max_workers: int = 1) -> dict[str, str]:
     """Apply the size band; return {ticker: cik}. Unknown-size names skipped
-    unless ``include_unknown`` (their size couldn't be determined)."""
+    unless ``include_unknown`` (their size couldn't be determined).
+
+    Sizing fetches one filing per name; with ``max_workers > 1`` those lookups
+    run on a bounded thread pool so the SEC round-trips overlap. The banded
+    result is assembled in ``records`` order regardless of worker count, so it
+    is identical to the sequential path.
+    """
+    values = parallel_map(lambda r: size.market_value(r.ticker, r.cik),
+                          records, max_workers)
     out: dict[str, str] = {}
-    for r in records:
-        mv = size.market_value(r.ticker, r.cik)
+    for r, mv in zip(records, values):
         if mv is None:
             if include_unknown:
                 out[r.ticker] = r.cik
