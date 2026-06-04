@@ -241,28 +241,45 @@ def _score_one(ticker: str, cik: str | None, as_of: dt.date, cfg: Config,
 
 
 def _run_screen(items: list[tuple[str, str]], as_of: dt.date, cfg: Config,
-                provider, eprov, settings: Settings,
-                skip_errors: bool) -> tuple[list, list[dict]]:
+                provider, eprov, settings: Settings, skip_errors: bool,
+                on_progress=None) -> tuple[list, list[dict]]:
     """Score ``items`` (concurrently on the live path); return (cards, skipped).
 
     When ``skip_errors`` (the universe sweep), a name with no usable facts is
     recorded in ``skipped`` and the run continues — one missing SPAC/new filer
     must not abort a 1,900-name screen. When False (explicit /run), the error
     propagates so the caller sees exactly which requested ticker failed.
+
+    ``on_progress(done, total)`` is called after each name (thread-safe), so a
+    long background sweep can report how far along it is.
     """
     # Pace live SEC calls across workers; no limiter needed off the network.
     limiter = (_RateLimiter(settings.sec_rps)
                if settings.effective_source == "companyfacts" else None)
+    total = len(items)
+    progress_lock = threading.Lock()
+    done = 0
+
+    def _bump() -> None:
+        nonlocal done
+        if on_progress is None:
+            return
+        with progress_lock:
+            done += 1
+            n = done
+        on_progress(n, total)
 
     def _work(item: tuple[str, str]):
         t, cik = item
         try:
-            return ("ok", _score_one(t, cik, as_of, cfg, provider, eprov,
-                                     settings, limiter))
+            result = ("ok", _score_one(t, cik, as_of, cfg, provider, eprov,
+                                       settings, limiter))
         except Exception as exc:
-            if skip_errors:
-                return ("skip", (t, str(exc)))
-            raise
+            if not skip_errors:
+                raise
+            result = ("skip", (t, str(exc)))
+        _bump()
+        return result
 
     live = settings.effective_source == "companyfacts"
     if live and settings.screen_workers > 1 and len(items) > 1:
@@ -276,6 +293,31 @@ def _run_screen(items: list[tuple[str, str]], as_of: dt.date, cfg: Config,
     skipped = [{"ticker": payload[0], "error": payload[1]}
                for tag, payload in results if tag == "skip"]
     return cards, skipped
+
+
+# Whole-universe results ship a compact, ranked rollup instead of the full
+# per-rule scorecards for every name (hundreds of full scorecards are megabytes —
+# too big to consume in one view). Full detail for any single name is one
+# run_landmine call away.
+_DETAIL_MAX = 25
+
+
+def summarize_scorecards(payload_cards: list[dict]) -> list[dict]:
+    """Compact one-line-per-name rollup, ranked most-distressed first."""
+    rows = []
+    for c in payload_cards:
+        flags = [r["rule_code"] for r in c.get("results", [])
+                 if r.get("status") == "FLAG"]
+        rows.append({
+            "ticker": c["ticker"],
+            "num_flags": c.get("num_flags", len(flags)),
+            "num_insufficient": c.get("num_insufficient", 0),
+            "max_severity": c.get("max_severity"),
+            "total_score": c.get("total_score", 0.0),
+            "flags": flags,
+        })
+    rows.sort(key=lambda r: r["total_score"], reverse=True)
+    return rows
 
 
 def screen(ticker_to_cik: dict[str, str], as_of: dt.date,
@@ -299,12 +341,14 @@ def screen_tickers(tickers: list[str], as_of: dt.date,
 
 def build_and_screen_universe(min_cap: float, max_cap: float, as_of: dt.date,
                               settings: Settings,
-                              max_universe: int | None = None) -> dict:
+                              max_universe: int | None = None,
+                              on_progress=None) -> dict:
     """Build the size-banded universe, then run the full screen over it.
 
     ``max_universe`` overrides the per-request size cap (defaults to
     ``settings.max_universe``); the async job path passes a higher ceiling so a
     full-market sweep isn't blocked by the small synchronous-request cap.
+    ``on_progress(done, total)`` is forwarded to the screen loop for live status.
     """
     if min_cap > max_cap:
         raise ScreenError("min_cap must be <= max_cap")
@@ -341,11 +385,24 @@ def build_and_screen_universe(min_cap: float, max_cap: float, as_of: dt.date,
     provider = _facts_provider(settings)
     eprov = _events_provider(settings)
     cards, skipped = _run_screen(sorted(universe.items()), as_of, cfg, provider,
-                                 eprov, settings, skip_errors=True)
-    return {
+                                 eprov, settings, skip_errors=True,
+                                 on_progress=on_progress)
+    payload = scorecards_to_payload(cards, cfg)
+    result = {
         "universe": dict(sorted(universe.items())),
         "count": len(universe),
         "screened": len(cards),
         "skipped": skipped,
-        "scorecards": scorecards_to_payload(cards, cfg),
+        # Ranked rollup (most distressed first) — always present, always small.
+        "summary": summarize_scorecards(payload),
     }
+    # Ship full per-rule scorecards only for small results; for a big sweep they
+    # are too large, so point the caller at run_landmine for any name's detail.
+    if len(payload) <= _DETAIL_MAX:
+        result["scorecards"] = payload
+    else:
+        result["scorecards_truncated"] = len(payload)
+        result["detail_hint"] = ("Full scorecards omitted to keep the result "
+                                 "small; use 'summary' (ranked by total_score) and "
+                                 "call run_landmine on a ticker for full detail.")
+    return result

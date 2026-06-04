@@ -157,3 +157,30 @@ def test_universe_start_runs_as_job_and_matches_sync(client):
 def test_unknown_job_is_404(client):
     r = client.get("/universe/jobs/deadbeef", headers={"X-Api-Key": KEY})
     assert r.status_code == 404
+
+
+def test_universe_returns_ranked_summary(client):
+    body = client.post("/universe",
+                       json={"min_cap": 50e6, "max_cap": 10e9, "as_of": "2026-06-02"},
+                       headers={"X-Api-Key": KEY}).json()
+    summary = body["summary"]
+    assert {row["ticker"] for row in summary} == {"WKHS", "BYND", "AMC"}
+    # Ranked most-distressed first (WKHS scores highest in the fixtures).
+    scores = [row["total_score"] for row in summary]
+    assert scores == sorted(scores, reverse=True)
+    assert summary[0]["ticker"] == "WKHS"
+    assert "R2_CASH_RUNWAY" in summary[0]["flags"]
+
+
+def test_large_universe_truncates_full_scorecards(client, monkeypatch):
+    # With the detail cap below the result size, full scorecards are dropped but
+    # the ranked summary still comes back in full.
+    from landmine_api import engine
+    monkeypatch.setattr(engine, "_DETAIL_MAX", 1)
+    body = client.post("/universe",
+                       json={"min_cap": 50e6, "max_cap": 10e9, "as_of": "2026-06-02"},
+                       headers={"X-Api-Key": KEY}).json()
+    assert "scorecards" not in body
+    assert body["scorecards_truncated"] == 3
+    assert len(body["summary"]) == 3
+    assert "detail_hint" in body
