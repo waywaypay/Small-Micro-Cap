@@ -35,8 +35,9 @@ services:
       - key: PYTHON_VERSION
         value: "3.11.9"
 
-  # Remote MCP server (streamable HTTP). Add its /mcp URL as a custom connector
-  # in Claude.ai, with the generated LANDMINE_MCP_TOKEN as the bearer token.
+  # Remote MCP server (streamable HTTP) with OAuth. Add its /mcp URL as a custom
+  # connector in Claude.ai; the connector runs the OAuth flow and the owner
+  # approves with LANDMINE_MCP_OAUTH_PASSWORD on the /login page.
   - type: web
     name: landmine-mcp
     runtime: python
@@ -58,7 +59,19 @@ services:
           type: web
           name: landmine-screen
           envVarKey: API_KEY
-      # Bearer token the web MCP host must send (Authorization: Bearer <token>).
+      # --- OAuth (Claude.ai custom connectors) ---
+      # Setting both of these turns on the OAuth authorization server; the
+      # connector then authenticates via OAuth instead of a static token.
+      # Public HTTPS base of THIS service (OAuth issuer + redirect base). Adjust
+      # if Render assigned a different hostname.
+      - key: LANDMINE_MCP_PUBLIC_URL
+        value: https://landmine-mcp.onrender.com
+      # Shared password the owner types on the /login consent page. Generated;
+      # read it from the Render dashboard.
+      - key: LANDMINE_MCP_OAUTH_PASSWORD
+        generateValue: true
+      # Legacy static-bearer mode for non-OAuth hosts. Ignored while OAuth (the
+      # two vars above) is configured; kept for hosts that send a raw token.
       - key: LANDMINE_MCP_TOKEN
         generateValue: true
       # Optional strict Host allowlist (comma-separated; trailing ':*' wildcards
