@@ -29,29 +29,44 @@ from .server import mcp
 _HEALTH_PATH = "/healthz"
 
 
+def _auth_disabled() -> bool:
+    return os.environ.get("LANDMINE_MCP_AUTH_DISABLED", "") in ("1", "true", "True")
+
+
+def _token() -> str:
+    return os.environ.get("LANDMINE_MCP_TOKEN", "").strip()
+
+
+def _auth_mode() -> str:
+    # Same precedence as _auth_ok (disabled wins), so the probe never reports a
+    # posture different from what the gate actually enforces.
+    if _auth_disabled():
+        return "disabled"
+    return "bearer" if _token() else "unconfigured"
+
+
 async def _healthz(_request):
-    token_set = bool(os.environ.get("LANDMINE_MCP_TOKEN", "").strip())
-    disabled = os.environ.get("LANDMINE_MCP_AUTH_DISABLED", "") in ("1", "true", "True")
     return JSONResponse({
         "status": "ok",
         "service": "landmine-mcp",
         "transport": "streamable-http",
         "mcp_path": "/mcp",
-        "auth": "bearer" if token_set else ("disabled" if disabled else "unconfigured"),
+        "auth": _auth_mode(),
         "backend_configured": bool(os.environ.get("LANDMINE_API_URL", "").strip()),
     })
 
 
 def _auth_ok(authorization: str) -> tuple[bool, int, str]:
     """(allowed, status_if_denied, message_if_denied) for a request's header."""
-    if os.environ.get("LANDMINE_MCP_AUTH_DISABLED", "") in ("1", "true", "True"):
+    if _auth_disabled():
         return True, 0, ""
-    token = os.environ.get("LANDMINE_MCP_TOKEN", "").strip()
+    token = _token()
     if not token:
         return False, 503, ("server not configured: set LANDMINE_MCP_TOKEN, or "
                             "LANDMINE_MCP_AUTH_DISABLED=1 to run open")
-    expected = f"Bearer {token}"
-    if authorization and hmac.compare_digest(authorization, expected):
+    # RFC 7235: the auth scheme is case-insensitive ("Bearer" / "bearer").
+    scheme, _, value = authorization.partition(" ")
+    if scheme.lower() == "bearer" and value and hmac.compare_digest(value, token):
         return True, 0, ""
     return False, 401, "unauthorized: send 'Authorization: Bearer <LANDMINE_MCP_TOKEN>'"
 
@@ -60,7 +75,7 @@ class BearerAuthMiddleware:
     """Pure-ASGI gate — checks the header before the request reaches the MCP app.
 
     Implemented at the ASGI layer (not BaseHTTPMiddleware) so it never buffers or
-    wraps the streaming MCP response. ``/healthz`` and CORS preflight pass through.
+    wraps the streaming MCP response. Only ``/healthz`` is exempt.
     """
 
     def __init__(self, app):
@@ -69,7 +84,7 @@ class BearerAuthMiddleware:
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
             return await self.app(scope, receive, send)
-        if scope.get("path") == _HEALTH_PATH or scope.get("method") == "OPTIONS":
+        if scope.get("path") == _HEALTH_PATH:
             return await self.app(scope, receive, send)
         headers = {k.decode().lower(): v.decode()
                    for k, v in (scope.get("headers") or [])}

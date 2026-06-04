@@ -54,11 +54,15 @@ def _normalize_as_of(as_of: str | None) -> str:
     return str(as_of).strip()
 
 
-def _post(path: str, payload: dict[str, Any]) -> dict[str, Any]:
+async def _post(path: str, payload: dict[str, Any]) -> dict[str, Any]:
+    # Async I/O so the HTTP transport's event loop stays free while a screen
+    # runs server-side (FastMCP runs sync tools inline on the loop, which would
+    # otherwise block every concurrent request behind one slow call).
     url, key = _config()
     try:
-        resp = httpx.post(f"{url}{path}", json=payload,
-                          headers={"X-Api-Key": key}, timeout=_TIMEOUT)
+        async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+            resp = await client.post(f"{url}{path}", json=payload,
+                                     headers={"X-Api-Key": key})
     except httpx.RequestError as exc:
         raise RuntimeError(f"Could not reach landmine-api at {url}{path}: {exc}") \
             from exc
@@ -74,7 +78,7 @@ def _post(path: str, payload: dict[str, Any]) -> dict[str, Any]:
 
 
 @mcp.tool()
-def run_landmine(tickers: list[str], as_of: str | None = None) -> dict[str, Any]:
+async def run_landmine(tickers: list[str], as_of: str | None = None) -> dict[str, Any]:
     """Screen an explicit list of tickers for financial-distress landmines.
 
     Runs the deterministic Tier 1 (numeric XBRL) + Tier 2 (filing-event) screen
@@ -90,12 +94,12 @@ def run_landmine(tickers: list[str], as_of: str | None = None) -> dict[str, Any]
     Returns:
         {"as_of", "count", "scorecards": [...]} from the service.
     """
-    return _post("/run", {"tickers": tickers, "as_of": _normalize_as_of(as_of)})
+    return await _post("/run", {"tickers": tickers, "as_of": _normalize_as_of(as_of)})
 
 
 @mcp.tool()
-def run_universe(min_cap: float, max_cap: float,
-                 as_of: str | None = None) -> dict[str, Any]:
+async def run_universe(min_cap: float, max_cap: float,
+                       as_of: str | None = None) -> dict[str, Any]:
     """Build a market-size-banded universe, then screen every name in it.
 
     Selects filers whose size falls in [min_cap, max_cap] (USD) and runs the
@@ -109,8 +113,8 @@ def run_universe(min_cap: float, max_cap: float,
     Returns:
         {"as_of", "universe", "count", "scorecards": [...]} from the service.
     """
-    return _post("/universe", {"min_cap": min_cap, "max_cap": max_cap,
-                               "as_of": _normalize_as_of(as_of)})
+    return await _post("/universe", {"min_cap": min_cap, "max_cap": max_cap,
+                                     "as_of": _normalize_as_of(as_of)})
 
 
 def main() -> None:

@@ -13,7 +13,7 @@ pytest.importorskip("mcp")
 from landmine_mcp import web  # noqa: E402
 
 
-def _drive(mw, path="/mcp", method="POST", headers=None):
+def _drive(path="/mcp", method="POST", headers=None):
     """Send one HTTP request through the ASGI middleware; return (status, sent)."""
     scope = {
         "type": "http", "path": path, "method": method,
@@ -61,25 +61,41 @@ def test_auth_token_match_and_mismatch(monkeypatch):
     assert not ok and status == 401
 
 
+def test_auth_scheme_is_case_insensitive(monkeypatch):
+    # RFC 7235: the auth scheme is case-insensitive; the token is not.
+    monkeypatch.delenv("LANDMINE_MCP_AUTH_DISABLED", raising=False)
+    monkeypatch.setenv("LANDMINE_MCP_TOKEN", "s3cret")
+    assert web._auth_ok("bearer s3cret")[0] is True
+    assert web._auth_ok("BEARER s3cret")[0] is True
+    assert web._auth_ok("Bearer S3CRET")[0] is False  # token stays case-sensitive
+
+
+def test_auth_mode_disabled_wins(monkeypatch):
+    # When both are set, the gate is open (disabled wins); the probe must agree.
+    monkeypatch.setenv("LANDMINE_MCP_TOKEN", "s3cret")
+    monkeypatch.setenv("LANDMINE_MCP_AUTH_DISABLED", "1")
+    assert web._auth_ok("")[0] is True          # open
+    assert web._auth_mode() == "disabled"       # probe reports open, not "bearer"
+
+
 def test_middleware_rejects_mcp_without_token(monkeypatch):
     monkeypatch.delenv("LANDMINE_MCP_AUTH_DISABLED", raising=False)
     monkeypatch.setenv("LANDMINE_MCP_TOKEN", "s3cret")
-    status, _ = _drive(None, path="/mcp")
+    status, _ = _drive(path="/mcp")
     assert status == 401
 
 
 def test_middleware_allows_mcp_with_token(monkeypatch):
     monkeypatch.delenv("LANDMINE_MCP_AUTH_DISABLED", raising=False)
     monkeypatch.setenv("LANDMINE_MCP_TOKEN", "s3cret")
-    status, _ = _drive(None, path="/mcp",
-                       headers={"Authorization": "Bearer s3cret"})
+    status, _ = _drive(path="/mcp", headers={"Authorization": "Bearer s3cret"})
     assert status == 299  # passed through to the downstream app
 
 
 def test_middleware_503_when_unconfigured(monkeypatch):
     monkeypatch.delenv("LANDMINE_MCP_AUTH_DISABLED", raising=False)
     monkeypatch.delenv("LANDMINE_MCP_TOKEN", raising=False)
-    status, _ = _drive(None, path="/mcp")
+    status, _ = _drive(path="/mcp")
     assert status == 503
 
 
@@ -87,11 +103,13 @@ def test_healthz_bypasses_auth(monkeypatch):
     # no token configured, but /healthz must still pass through
     monkeypatch.delenv("LANDMINE_MCP_TOKEN", raising=False)
     monkeypatch.delenv("LANDMINE_MCP_AUTH_DISABLED", raising=False)
-    status, _ = _drive(None, path="/healthz", method="GET")
+    status, _ = _drive(path="/healthz", method="GET")
     assert status == 299
 
 
-def test_options_preflight_bypasses_auth(monkeypatch):
+def test_options_to_mcp_is_gated(monkeypatch):
+    # The OPTIONS bypass was removed; preflight to /mcp is now auth-gated too.
+    monkeypatch.delenv("LANDMINE_MCP_AUTH_DISABLED", raising=False)
     monkeypatch.setenv("LANDMINE_MCP_TOKEN", "s3cret")
-    status, _ = _drive(None, path="/mcp", method="OPTIONS")
-    assert status == 299
+    status, _ = _drive(path="/mcp", method="OPTIONS")
+    assert status == 401
