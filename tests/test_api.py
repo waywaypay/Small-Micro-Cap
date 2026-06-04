@@ -109,3 +109,51 @@ def test_universe_builds_and_screens(client):
     assert set(body["universe"]) == {"WKHS", "BYND", "AMC"}
     assert body["count"] == 3
     assert len(body["scorecards"]) == 3
+
+
+# ---- background-job path ---------------------------------------------------
+
+def _poll_job(client, job_id, timeout=10.0):
+    import time
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        r = client.get(f"/universe/jobs/{job_id}", headers={"X-Api-Key": KEY})
+        assert r.status_code == 200
+        body = r.json()
+        if body["status"] != "running":
+            return body
+        time.sleep(0.05)
+    raise AssertionError(f"job {job_id} did not finish within {timeout}s")
+
+
+def test_universe_start_requires_api_key(client):
+    r = client.post("/universe/start",
+                    json={"min_cap": 50e6, "max_cap": 10e9, "as_of": "2026-06-02"})
+    assert r.status_code == 401
+
+
+def test_universe_start_runs_as_job_and_matches_sync(client):
+    start = client.post("/universe/start",
+                        json={"min_cap": 50e6, "max_cap": 10e9,
+                              "as_of": "2026-06-02"},
+                        headers={"X-Api-Key": KEY})
+    assert start.status_code == 200
+    job_id = start.json()["job_id"]
+    assert start.json()["status"] == "running"
+
+    done = _poll_job(client, job_id)
+    assert done["status"] == "done", done
+    result = done["result"]
+    assert set(result["universe"]) == {"WKHS", "BYND", "AMC"}
+    assert result["count"] == 3
+    # Parity: the job produces the same payload the synchronous route does.
+    sync = client.post("/universe",
+                       json={"min_cap": 50e6, "max_cap": 10e9,
+                             "as_of": "2026-06-02"},
+                       headers={"X-Api-Key": KEY}).json()
+    assert result["scorecards"] == sync["scorecards"]
+
+
+def test_unknown_job_is_404(client):
+    r = client.get("/universe/jobs/deadbeef", headers={"X-Api-Key": KEY})
+    assert r.status_code == 404
