@@ -162,6 +162,18 @@ def test_oauth_disabled_when_password_missing(monkeypatch):
     assert o.build_oauth() is None
 
 
+def test_tokens_survive_restart(oauth):
+    """A token issued before a restart still validates after — the whole point of
+    making tokens stateless (Render free tier restarts constantly)."""
+    _, provider = oauth
+    issued = provider._issue("client-x", ["mcp"])
+    # Simulate a process restart: a brand-new provider with no in-memory state,
+    # same secret (env unchanged). The old token must still verify.
+    fresh = type(provider)(provider._public_url, provider._password)
+    got = asyncio.run(fresh.load_access_token(issued.access_token))
+    assert got is not None and got.client_id == "client-x"
+
+
 def test_refresh_rotates_and_revoke(oauth):
     """Refresh tokens rotate (old one dies); revoke kills the access token."""
     _, provider = oauth
