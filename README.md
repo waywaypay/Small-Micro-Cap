@@ -506,11 +506,24 @@ web hosts (Claude.ai custom connectors).
 | Tool | Args | Calls |
 |------|------|-------|
 | `run_landmine` | `tickers: list[str]`, `as_of?: str` | `POST /run` |
-| `run_universe` | `min_cap: float`, `max_cap: float`, `as_of?: str` | `POST /universe` |
+| `run_universe` | `min_cap: float`, `max_cap: float`, `as_of?: str` | `POST /universe` (sync, small bands) |
+| `start_universe_screen` | `min_cap: float`, `max_cap: float`, `as_of?: str` | `POST /universe/start` → `job_id` |
+| `get_universe_result` | `job_id: str` | `GET /universe/jobs/{id}` |
 
 `as_of` is optional and defaults to today. Config comes from the environment:
 `LANDMINE_API_URL` (the deployed service's base URL) and `LANDMINE_API_KEY`
 (sent as `X-Api-Key`).
+
+**Small band vs. whole market.** `run_universe` screens a band **synchronously**
+in one call — fine for a narrow slice (e.g. `$50M–$300M`), but a wide band is
+hundreds–thousands of names and won't finish inside a request/connector timeout.
+For the **full screen**, use `start_universe_screen` (returns a `job_id`
+immediately) then poll `get_universe_result(job_id)` until `status` is `"done"`.
+The universe is sized in bulk via the SEC *frames* API (a handful of calls), not
+one company-facts download per filer, so building the band is fast; the long part
+is screening each name, which is why it runs as a background job. The sync route
+is capped by `LANDMINE_MAX_UNIVERSE` (default 250); the job by
+`LANDMINE_MAX_UNIVERSE_ASYNC` (default 3000).
 
 ### Local stdio (Claude Desktop / IDEs)
 

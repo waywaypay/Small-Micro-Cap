@@ -18,7 +18,7 @@ from landmine.data.provider import FixtureProvider, HttpCompanyFactsProvider
 from landmine.persistence import scorecards_to_payload
 from landmine.scoring import score_company
 from landmine.universe import (
-    PublicFloatSizeProvider,
+    FramesSizeProvider,
     StaticSizeProvider,
     build_universe,
     load_company_tickers,
@@ -52,6 +52,9 @@ class Settings:
     enable_events: bool = True
     # safety cap on how many names a single /universe screen will fetch+score.
     max_universe: int = 250
+    # higher ceiling for the background (async) job path — a full-market sweep
+    # can't fit one synchronous request, so it runs as a job instead.
+    max_universe_async: int = 3000
     config_path: str = _path("config", "thresholds.yaml")
     universe_path: str = _path("config", "universe.yaml")
     fixtures_dir: str = _path("tests", "fixtures", "raw")
@@ -70,6 +73,8 @@ class Settings:
             enable_events=os.environ.get("LANDMINE_ENABLE_EVENTS", "1") not in
             ("0", "false", "False", ""),
             max_universe=int(os.environ.get("LANDMINE_MAX_UNIVERSE", "250")),
+            max_universe_async=int(
+                os.environ.get("LANDMINE_MAX_UNIVERSE_ASYNC", "3000")),
         )
 
     @property
@@ -220,18 +225,25 @@ def screen_tickers(tickers: list[str], as_of: dt.date,
 
 
 def build_and_screen_universe(min_cap: float, max_cap: float, as_of: dt.date,
-                              settings: Settings) -> dict:
-    """Build the size-banded universe, then run the full screen over it."""
+                              settings: Settings,
+                              max_universe: int | None = None) -> dict:
+    """Build the size-banded universe, then run the full screen over it.
+
+    ``max_universe`` overrides the per-request size cap (defaults to
+    ``settings.max_universe``); the async job path passes a higher ceiling so a
+    full-market sweep isn't blocked by the small synchronous-request cap.
+    """
     if min_cap > max_cap:
         raise ScreenError("min_cap must be <= max_cap")
+    cap = settings.max_universe if max_universe is None else max_universe
 
     # Records: live SEC list when available, otherwise the frozen fixture list.
     if settings.effective_source == "companyfacts" and settings.sec_user_agent:
         records = load_company_tickers(user_agent=settings.sec_user_agent)
-        size = PublicFloatSizeProvider(
-            HttpCompanyFactsProvider(user_agent=settings.sec_user_agent,
-                                     cache_dir=settings.cache_dir or None),
-            as_of)
+        # Size the whole market in a handful of bulk frame calls — NOT one
+        # companyfacts download per filer (that fetched ~10k names just to build
+        # the band and never finished inside a request timeout).
+        size = FramesSizeProvider(as_of, user_agent=settings.sec_user_agent)
     else:
         path = settings.company_tickers_fixture
         records = load_company_tickers(
@@ -243,9 +255,9 @@ def build_and_screen_universe(min_cap: float, max_cap: float, as_of: dt.date,
         size = StaticSizeProvider(raw)
 
     universe = build_universe(records, size, min_cap, max_cap)
-    if len(universe) > settings.max_universe:
+    if len(universe) > cap:
         raise ScreenError(
-            f"Universe has {len(universe)} names (cap {settings.max_universe}); "
+            f"Universe has {len(universe)} names (cap {cap}); "
             f"narrow the cap band or raise LANDMINE_MAX_UNIVERSE",
             status_code=413)
     scorecards = screen(universe, as_of, settings)

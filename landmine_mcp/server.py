@@ -112,6 +112,24 @@ async def _post(path: str, payload: dict[str, Any]) -> dict[str, Any]:
     return resp.json()
 
 
+async def _get(path: str) -> dict[str, Any]:
+    url, key = _config()
+    try:
+        async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+            resp = await client.get(f"{url}{path}", headers={"X-Api-Key": key})
+    except httpx.RequestError as exc:
+        raise RuntimeError(f"Could not reach landmine-api at {url}{path}: {exc}") \
+            from exc
+    if resp.status_code >= 400:
+        detail: Any
+        try:
+            detail = resp.json().get("detail", resp.text)
+        except Exception:
+            detail = resp.text
+        raise RuntimeError(f"landmine-api {path} returned {resp.status_code}: {detail}")
+    return resp.json()
+
+
 @mcp.tool()
 async def run_landmine(tickers: list[str], as_of: str | None = None) -> dict[str, Any]:
     """Screen an explicit list of tickers for financial-distress landmines.
@@ -135,14 +153,17 @@ async def run_landmine(tickers: list[str], as_of: str | None = None) -> dict[str
 @mcp.tool()
 async def run_universe(min_cap: float, max_cap: float,
                        as_of: str | None = None) -> dict[str, Any]:
-    """Build a market-size-banded universe, then screen every name in it.
+    """Screen a *small* market-size-banded universe synchronously, in one call.
 
-    Selects filers whose size falls in [min_cap, max_cap] (USD) and runs the
-    same deterministic screen over all of them.
+    Selects filers whose size (public float) falls in [min_cap, max_cap] (USD)
+    and screens all of them, returning the scorecards directly. Use this only for
+    narrow bands that finish quickly; a wide band (hundreds+ of names) won't fit a
+    single request — use ``start_universe_screen`` + ``get_universe_result``
+    instead. If this returns a 413 "cap" error, the band is too big for sync mode.
 
     Args:
         min_cap: Lower size bound in USD, e.g. 50e6.
-        max_cap: Upper size bound in USD, e.g. 10e9.
+        max_cap: Upper size bound in USD, e.g. 300e6.
         as_of: Point-in-time date YYYY-MM-DD. Defaults to today if omitted.
 
     Returns:
@@ -150,6 +171,44 @@ async def run_universe(min_cap: float, max_cap: float,
     """
     return await _post("/universe", {"min_cap": min_cap, "max_cap": max_cap,
                                      "as_of": _normalize_as_of(as_of)})
+
+
+@mcp.tool()
+async def start_universe_screen(min_cap: float, max_cap: float,
+                                as_of: str | None = None) -> dict[str, Any]:
+    """Start a FULL universe screen as a background job; returns a job_id.
+
+    Use this for the whole micro/small-cap screen (e.g. $50M–$2B) — it sizes the
+    market in bulk, then screens every name in the band server-side. Screening
+    hundreds/thousands of filers takes minutes, far longer than one request can
+    wait, so it runs in the background. Poll ``get_universe_result(job_id)`` until
+    its status is "done" (or "error").
+
+    Args:
+        min_cap: Lower size bound in USD, e.g. 50e6.
+        max_cap: Upper size bound in USD, e.g. 2e9.
+        as_of: Point-in-time date YYYY-MM-DD. Defaults to today if omitted.
+
+    Returns:
+        {"job_id", "status": "running", "poll"} — pass job_id to get_universe_result.
+    """
+    return await _post("/universe/start", {"min_cap": min_cap, "max_cap": max_cap,
+                                           "as_of": _normalize_as_of(as_of)})
+
+
+@mcp.tool()
+async def get_universe_result(job_id: str) -> dict[str, Any]:
+    """Poll a background universe screen started by ``start_universe_screen``.
+
+    Args:
+        job_id: The id returned by start_universe_screen.
+
+    Returns:
+        While running: {"status": "running", ...}. When finished:
+        {"status": "done", "result": {"as_of", "universe", "count", "scorecards"}}
+        or {"status": "error", "error", "status_code"} if the screen failed.
+    """
+    return await _get(f"/universe/jobs/{job_id}")
 
 
 def main() -> None:
