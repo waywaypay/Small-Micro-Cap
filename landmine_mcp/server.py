@@ -1,8 +1,13 @@
 """MCP server exposing the landmine screen over the deployed HTTP API.
 
 A thin client: each tool POSTs to the FastAPI service and returns the parsed
-scorecard JSON unchanged, so the MCP surface always matches the API. Transport
-is stdio, so it runs as a local subprocess of an MCP host (e.g. Claude Desktop).
+scorecard JSON unchanged, so the MCP surface always matches the API.
+
+Two transports share these tools:
+* **stdio** (``main`` / ``python -m landmine_mcp.server``) — a local subprocess
+  for desktop MCP hosts (Claude Desktop, IDEs).
+* **streamable HTTP** (``landmine_mcp.web:app``) — a remote server for web hosts
+  (Claude.ai custom connectors). See ``landmine_mcp/web.py``.
 
 Configuration (environment):
   LANDMINE_API_URL  base URL of the deployed service, e.g.
@@ -18,7 +23,10 @@ from typing import Any
 import httpx
 from mcp.server.fastmcp import FastMCP
 
-mcp = FastMCP("landmine")
+# stateless_http + json_response keep the HTTP transport simple and proxy/CDN
+# friendly (no per-session state to pin, plain JSON responses rather than a kept-
+# open SSE stream). They are inert for the stdio transport.
+mcp = FastMCP("landmine", stateless_http=True, json_response=True)
 
 # A single /universe build can fetch many filings server-side; keep the client
 # patient but bounded.

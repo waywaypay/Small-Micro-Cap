@@ -1,4 +1,7 @@
-# Render Blueprint for the Landmine Screen API (free tier).
+# Render Blueprint for the Landmine Screen (free tier). Two services:
+#   landmine-screen  — the FastAPI HTTP API (/run, /universe, /health)
+#   landmine-mcp     — the remote MCP server (streamable HTTP) for Claude.ai
+#                      custom connectors; wraps the API above
 # Deploy: push this repo to GitHub, then in the Render dashboard pick
 # "New +" -> "Blueprint" and select the repo. Render reads this file.
 services:
@@ -29,5 +32,34 @@ services:
       # Safety cap: largest universe a single /universe request will screen.
       - key: LANDMINE_MAX_UNIVERSE
         value: "250"
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+
+  # Remote MCP server (streamable HTTP). Add its /mcp URL as a custom connector
+  # in Claude.ai, with the generated LANDMINE_MCP_TOKEN as the bearer token.
+  - type: web
+    name: landmine-mcp
+    runtime: python
+    plan: free
+    region: oregon
+    branch: main
+    buildCommand: "pip install -e .[mcp]"
+    startCommand: "uvicorn landmine_mcp.web:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      # Base URL of the API service above. Defaults to its predicted public URL;
+      # adjust if Render assigned a different hostname.
+      - key: LANDMINE_API_URL
+        value: https://landmine-screen.onrender.com
+      # Pull the API service's generated key so the two stay in sync.
+      - key: LANDMINE_API_KEY
+        fromService:
+          type: web
+          name: landmine-screen
+          envVarKey: API_KEY
+      # Bearer token the web MCP host must send (Authorization: Bearer <token>).
+      - key: LANDMINE_MCP_TOKEN
+        generateValue: true
       - key: PYTHON_VERSION
         value: "3.11.9"
