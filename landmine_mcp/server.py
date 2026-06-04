@@ -24,6 +24,8 @@ import httpx
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 
+from .oauth import build_oauth
+
 
 def _transport_security() -> TransportSecuritySettings:
     """DNS-rebinding protection posture for the HTTP transport.
@@ -48,7 +50,18 @@ def _transport_security() -> TransportSecuritySettings:
 # the GET /mcp that web hosts (Claude.ai custom connectors) open after auth with
 # 405 Method Not Allowed, which the connector treats as a failed handshake; a
 # stateful server serves the SSE stream that GET expects instead. Inert for stdio.
-mcp = FastMCP("landmine", transport_security=_transport_security())
+#
+# When the OAuth env (public URL + login password) is set, run as an OAuth
+# authorization+resource server so Claude.ai's connector can authenticate the way
+# it expects; the SDK then mounts the metadata/authorize/token/register routes and
+# gates /mcp on a bearer token. Otherwise OAuth is off (stdio / legacy bearer).
+oauth_provider = build_oauth()
+if oauth_provider is not None:
+    mcp = FastMCP("landmine", auth_server_provider=oauth_provider,
+                  auth=oauth_provider.auth_settings,
+                  transport_security=_transport_security())
+else:
+    mcp = FastMCP("landmine", transport_security=_transport_security())
 
 # A single /universe build can fetch many filings server-side; keep the client
 # patient but bounded.

@@ -547,38 +547,47 @@ inherit your shell `PATH`), then restart Claude Desktop:
 Web MCP hosts can't launch a local process, so they need the **streamable-HTTP**
 server (`landmine_mcp/web.py`), deployed at a public URL. The `render.yaml`
 Blueprint provisions it as a second free service, `landmine-mcp`, alongside the
-API:
+API.
+
+**Auth: OAuth, because that's what Claude.ai speaks.** Claude.ai custom
+connectors authenticate via OAuth (authorization-code + PKCE + dynamic client
+registration) — there is no field to paste a static bearer token. So the server
+runs a small, self-contained OAuth authorization server (`landmine_mcp/oauth.py`)
+and the MCP SDK mounts the rest. It turns on when both are set:
 
 ```bash
 LANDMINE_API_URL=https://landmine-screen.onrender.com \
 LANDMINE_API_KEY=…service-API_KEY… \
-LANDMINE_MCP_TOKEN=…bearer-token… \
+LANDMINE_MCP_PUBLIC_URL=https://landmine-mcp.onrender.com \
+LANDMINE_MCP_OAUTH_PASSWORD=…owner-approval-password… \
   uvicorn landmine_mcp.web:app --host 0.0.0.0 --port 8000
-# MCP endpoint: /mcp   ·   open liveness probe: /healthz
+# MCP endpoint: /mcp · OAuth: /authorize /token /register + /.well-known/* · probe: /healthz
 ```
 
-It's a public proxy in front of the API (it holds `LANDMINE_API_KEY`), so it
-**fails closed**: requests are refused with `503` unless either
-`LANDMINE_MCP_TOKEN` is set (then `/mcp` requires `Authorization: Bearer <token>`)
-or `LANDMINE_MCP_AUTH_DISABLED=1` is set explicitly.
+The flow: Claude.ai discovers the OAuth metadata, registers itself, and opens
+`/authorize`; the server redirects to a `/login` page where **you** (the single
+resource owner) enter `LANDMINE_MCP_OAUTH_PASSWORD` to approve; the SDK then
+issues the connector a bearer token (verified on `/mcp`, PKCE enforced). Tokens
+and registrations are in-memory — a restart just makes the connector re-auth.
 
-The MCP SDK's DNS-rebinding protection defaults its `Host` allowlist to
-localhost, so a public deployment would otherwise reject requests to its own
-hostname (`421`/`403`) on *every* call — what a connector reports as an
-unreachable server. Since this endpoint is reached server-to-server (no browser
-`Origin`) and is already gated by the bearer token, that protection is **off by
-default**; set `LANDMINE_MCP_ALLOWED_HOSTS` (comma-separated, e.g.
-`landmine-mcp.onrender.com`; a trailing `:*` wildcards the port) to re-enable a
-strict `Host` allowlist.
+If OAuth isn't configured, it falls back to a **legacy static-bearer** gate
+(`LANDMINE_MCP_TOKEN`, or `LANDMINE_MCP_AUTH_DISABLED=1` to run open) for non-OAuth
+hosts; with nothing set it fails closed (`503`) so an unconfigured deploy is never
+an open proxy.
 
-To use it on **Claude.ai**: deploy (the Blueprint generates `LANDMINE_MCP_TOKEN`
-and wires `LANDMINE_API_KEY` from the API service), then in Claude.ai →
-**Settings → Connectors → Add custom connector**, give it the
-`https://landmine-mcp.onrender.com/mcp` URL and authenticate with the bearer
-token. Custom connectors require a paid plan (Pro/Max/Team/Enterprise), and the
-exact auth fields follow Anthropic's current
-[connector docs](https://support.anthropic.com/en/articles/11175166-getting-started-with-custom-connectors-using-remote-mcp);
-the server also speaks plain MCP-over-HTTP for any other remote host.
+> **DNS-rebinding note:** the MCP SDK defaults its `Host` allowlist to localhost,
+> so a public deployment would otherwise reject its own hostname (`421`/`403`) on
+> *every* call. It's **off by default** here (the endpoint is server-to-server and
+> token-gated); set `LANDMINE_MCP_ALLOWED_HOSTS` (comma-separated, e.g.
+> `landmine-mcp.onrender.com`; trailing `:*` wildcards the port) to re-enable it.
+
+To use it on **Claude.ai**: deploy (the Blueprint generates
+`LANDMINE_MCP_OAUTH_PASSWORD` and wires `LANDMINE_API_KEY` from the API service),
+then Claude.ai → **Settings → Connectors → Add custom connector** → URL
+`https://landmine-mcp.onrender.com/mcp`. Claude.ai walks the OAuth flow itself;
+approve on the `/login` page with the generated password. Custom connectors need
+a paid plan (Pro/Max/Team/Enterprise); details follow Anthropic's current
+[connector docs](https://support.anthropic.com/en/articles/11175166-getting-started-with-custom-connectors-using-remote-mcp).
 
 ## Run as a Claude skill
 
