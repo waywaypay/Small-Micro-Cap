@@ -562,6 +562,15 @@ It's a public proxy in front of the API (it holds `LANDMINE_API_KEY`), so it
 `LANDMINE_MCP_TOKEN` is set (then `/mcp` requires `Authorization: Bearer <token>`)
 or `LANDMINE_MCP_AUTH_DISABLED=1` is set explicitly.
 
+The MCP SDK's DNS-rebinding protection defaults its `Host` allowlist to
+localhost, so a public deployment would otherwise reject requests to its own
+hostname (`421`/`403`) on *every* call — what a connector reports as an
+unreachable server. Since this endpoint is reached server-to-server (no browser
+`Origin`) and is already gated by the bearer token, that protection is **off by
+default**; set `LANDMINE_MCP_ALLOWED_HOSTS` (comma-separated, e.g.
+`landmine-mcp.onrender.com`; a trailing `:*` wildcards the port) to re-enable a
+strict `Host` allowlist.
+
 To use it on **Claude.ai**: deploy (the Blueprint generates `LANDMINE_MCP_TOKEN`
 and wires `LANDMINE_API_KEY` from the API service), then in Claude.ai →
 **Settings → Connectors → Add custom connector**, give it the

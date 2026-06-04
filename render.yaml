@@ -61,5 +61,12 @@ services:
       # Bearer token the web MCP host must send (Authorization: Bearer <token>).
       - key: LANDMINE_MCP_TOKEN
         generateValue: true
+      # Optional strict Host allowlist (comma-separated; trailing ':*' wildcards
+      # the port). Leave unset to disable the SDK's localhost-only DNS-rebinding
+      # protection, which otherwise 421/403s every request to this public host.
+      # If set, include this service's own hostname, e.g.:
+      #   landmine-mcp.onrender.com
+      - key: LANDMINE_MCP_ALLOWED_HOSTS
+        sync: false
       - key: PYTHON_VERSION
         value: "3.11.9"

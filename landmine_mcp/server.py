@@ -22,11 +22,33 @@ from typing import Any
 
 import httpx
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 
-# stateless_http + json_response keep the HTTP transport simple and proxy/CDN
-# friendly (no per-session state to pin, plain JSON responses rather than a kept-
-# open SSE stream). They are inert for the stdio transport.
-mcp = FastMCP("landmine", stateless_http=True, json_response=True)
+
+def _transport_security() -> TransportSecuritySettings:
+    """DNS-rebinding protection posture for the HTTP transport.
+
+    FastMCP's default Host allowlist is localhost-only, so a public deployment
+    rejects requests to its own hostname (HTTP 421/403) on *every* call — the
+    error a web MCP host sees as an unreachable server. This endpoint is reached
+    server-to-server by a web host (no browser Origin to defend) and already
+    fails closed behind a bearer token, so default protection off. Set
+    ``LANDMINE_MCP_ALLOWED_HOSTS`` (comma-separated; a trailing ``:*`` wildcards
+    the port) to re-enable a Host allowlist instead. Inert for stdio.
+    """
+    raw = os.environ.get("LANDMINE_MCP_ALLOWED_HOSTS", "").strip()
+    if not raw:
+        return TransportSecuritySettings(enable_dns_rebinding_protection=False)
+    hosts = [h.strip() for h in raw.split(",") if h.strip()]
+    return TransportSecuritySettings(
+        enable_dns_rebinding_protection=True, allowed_hosts=hosts)
+
+
+# Stateful streamable-HTTP transport (FastMCP's default). Stateless mode answers
+# the GET /mcp that web hosts (Claude.ai custom connectors) open after auth with
+# 405 Method Not Allowed, which the connector treats as a failed handshake; a
+# stateful server serves the SSE stream that GET expects instead. Inert for stdio.
+mcp = FastMCP("landmine", transport_security=_transport_security())
 
 # A single /universe build can fetch many filings server-side; keep the client
 # patient but bounded.
