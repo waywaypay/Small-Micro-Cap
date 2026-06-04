@@ -187,7 +187,9 @@ pytest -q
 
 Outputs land in `out/`: a SQLite DB (`findings` row per ticker×as_of×rule, plus a
 per-ticker `rollup`) and a canonical `scorecard.json` (the reproducibility
-artifact).
+artifact). The DB accumulates across runs — each run upserts its `(ticker,
+as_of)` slice in place — so one file is a point-in-time history you can query by
+date without re-screening; the `scorecard.json` is still overwritten per run.
 
 ### Example (as-of 2026-06-02, starter thresholds)
 
