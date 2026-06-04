@@ -84,6 +84,11 @@ class Settings:
                 os.environ.get("LANDMINE_MAX_UNIVERSE_ASYNC", "3000")),
             screen_workers=int(os.environ.get("LANDMINE_SCREEN_WORKERS", "8")),
             sec_rps=float(os.environ.get("LANDMINE_SEC_RPS", "9")),
+            # Lets the deploy point the companyfacts cache at a persistent disk
+            # (Render) so it survives restarts/redeploys; defaults to the local
+            # ephemeral dir when unset, so behaviour is unchanged off-platform.
+            cache_dir=os.environ.get("LANDMINE_CACHE_DIR", "").strip()
+            or _path("out", "companyfacts_cache"),
         )
 
     @property
