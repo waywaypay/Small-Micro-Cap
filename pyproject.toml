@@ -15,12 +15,15 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=7", "httpx>=0.27"]
+# Local stdio MCP server that wraps the deployed landmine-api service.
+mcp = ["mcp>=1.2", "httpx>=0.27"]
 
 [project.scripts]
 landmine = "landmine.cli:main"
+landmine-mcp = "landmine_mcp.server:main"
 
 [tool.setuptools.packages.find]
-include = ["landmine*", "landmine_api*"]
+include = ["landmine*", "landmine_api*", "landmine_mcp*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

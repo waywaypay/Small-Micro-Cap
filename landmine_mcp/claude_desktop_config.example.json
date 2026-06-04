@@ -1,0 +1,13 @@
+{
+  "_comment": "Add the 'landmine' entry below to the mcpServers object in your real claude_desktop_config.json. Use ABSOLUTE paths (Claude Desktop does not inherit your shell PATH). macOS path: ~/Library/Application Support/Claude/claude_desktop_config.json | Windows: %APPDATA%\\Claude\\claude_desktop_config.json. Replace the python path, URL, and key.",
+  "mcpServers": {
+    "landmine": {
+      "command": "/ABSOLUTE/PATH/TO/python",
+      "args": ["-m", "landmine_mcp.server"],
+      "env": {
+        "LANDMINE_API_URL": "https://landmine-screen.onrender.com",
+        "LANDMINE_API_KEY": "replace-with-your-service-API_KEY"
+      }
+    }
+  }
+}
