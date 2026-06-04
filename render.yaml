@@ -70,6 +70,12 @@ services:
       # read it from the Render dashboard.
       - key: LANDMINE_MCP_OAUTH_PASSWORD
         generateValue: true
+      # Secret that signs OAuth tokens. Generated once and STABLE across deploys/
+      # restarts, so issued tokens keep validating and the connector does NOT have
+      # to re-authenticate every time the free-tier instance spins down. If unset,
+      # it derives from the password (so rotating the password invalidates tokens).
+      - key: LANDMINE_MCP_OAUTH_SECRET
+        generateValue: true
       # Legacy static-bearer mode for non-OAuth hosts. Ignored while OAuth (the
       # two vars above) is configured; kept for hosts that send a raw token.
       - key: LANDMINE_MCP_TOKEN

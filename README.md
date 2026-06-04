@@ -587,8 +587,14 @@ LANDMINE_MCP_OAUTH_PASSWORD=…owner-approval-password… \
 The flow: Claude.ai discovers the OAuth metadata, registers itself, and opens
 `/authorize`; the server redirects to a `/login` page where **you** (the single
 resource owner) enter `LANDMINE_MCP_OAUTH_PASSWORD` to approve; the SDK then
-issues the connector a bearer token (verified on `/mcp`, PKCE enforced). Tokens
-and registrations are in-memory — a restart just makes the connector re-auth.
+issues the connector a bearer token (verified on `/mcp`, PKCE enforced).
+
+Tokens are **stateless and signed** (`LANDMINE_MCP_OAUTH_SECRET`, stable across
+deploys), so they keep validating after the free-tier instance spins down — you
+authorize once, not on every use. Set `LANDMINE_MCP_OAUTH_SECRET` to a stable
+value (the Blueprint generates one); if unset it derives from the password, so
+rotating the password invalidates existing tokens. Access tokens last 30 days,
+refresh tokens 90.
 
 If OAuth isn't configured, it falls back to a **legacy static-bearer** gate
 (`LANDMINE_MCP_TOKEN`, or `LANDMINE_MCP_AUTH_DISABLED=1` to run open) for non-OAuth

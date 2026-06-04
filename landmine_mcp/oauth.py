@@ -24,8 +24,11 @@ small free-tier instance; back it with a store if you scale out.
 """
 from __future__ import annotations
 
+import base64
+import hashlib
 import hmac
 import html
+import json
 import os
 import secrets
 import time
@@ -40,17 +43,17 @@ from mcp.server.auth.provider import (
 )
 from mcp.server.auth.settings import AuthSettings, ClientRegistrationOptions
 from mcp.shared.auth import OAuthClientInformationFull, OAuthToken
-from pydantic import AnyHttpUrl
+from pydantic import AnyHttpUrl, AnyUrl
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, RedirectResponse, Response
 from starlette.routing import Route
 
 _SCOPE = "mcp"
 _LOGIN_PATH = "/login"
-_AUTH_CODE_TTL = 300            # seconds; one-time authorization code
-_ACCESS_TTL = 3600             # seconds; access token
-_REFRESH_TTL = 30 * 24 * 3600  # seconds; refresh token
-_TXN_TTL = 600                 # seconds; pending /authorize -> /login transaction
+_AUTH_CODE_TTL = 300                # seconds; authorization code
+_ACCESS_TTL = 30 * 24 * 3600       # seconds; access token (long: see _sign below)
+_REFRESH_TTL = 90 * 24 * 3600      # seconds; refresh token
+_TXN_TTL = 600                     # seconds; pending /authorize -> /login transaction
 
 
 def _public_url() -> str:
@@ -61,9 +64,61 @@ def _password() -> str:
     return os.environ.get("LANDMINE_MCP_OAUTH_PASSWORD", "").strip()
 
 
+# --- stateless signed tokens ------------------------------------------------
+# Tokens (access / refresh / auth code) are HMAC-signed and self-contained, so
+# they validate against a stable secret with **no server-side storage**. This is
+# what lets the connector survive process restarts: Render's free tier spins the
+# service down on idle and on every deploy, and an in-memory token store would be
+# wiped each time — forcing a reconnect on every use. The secret is stable across
+# restarts (a Render env var), so issued tokens keep verifying.
+
+def _secret() -> bytes:
+    raw = (os.environ.get("LANDMINE_MCP_OAUTH_SECRET", "").strip()
+           or os.environ.get("LANDMINE_MCP_OAUTH_PASSWORD", ""))
+    return hashlib.sha256(b"landmine-oauth\x00" + raw.encode()).digest()
+
+
+def _b64(b: bytes) -> str:
+    return base64.urlsafe_b64encode(b).rstrip(b"=").decode()
+
+
+def _b64d(s: str) -> bytes:
+    return base64.urlsafe_b64decode(s + "=" * (-len(s) % 4))
+
+
+def _sign(payload: dict) -> str:
+    body = _b64(json.dumps(payload, separators=(",", ":"), sort_keys=True).encode())
+    sig = _b64(hmac.new(_secret(), body.encode(), hashlib.sha256).digest())
+    return f"{body}.{sig}"
+
+
+def _verify(token: str, typ: str) -> dict | None:
+    """Return the payload if the signature, type and expiry all check out."""
+    try:
+        body, sig = token.split(".", 1)
+    except ValueError:
+        return None
+    expected = _b64(hmac.new(_secret(), body.encode(), hashlib.sha256).digest())
+    if not hmac.compare_digest(sig, expected):
+        return None
+    try:
+        payload = json.loads(_b64d(body))
+    except Exception:
+        return None
+    if payload.get("typ") != typ or payload.get("exp", 0) < time.time():
+        return None
+    return payload
+
+
 class LandmineOAuthProvider(
         OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToken, AccessToken]):
-    """In-memory OAuth AS/RS for a single resource owner approving via /login."""
+    """OAuth AS/RS for a single resource owner approving via /login.
+
+    Tokens are stateless (signed), so the connector survives the free tier's
+    frequent restarts. The only in-memory state is the live client registry and
+    the in-flight /authorize->/login transactions (both repopulate on the next
+    auth), plus a best-effort revocation denylist.
+    """
 
     def __init__(self, public_url: str, password: str):
         self._public_url = public_url
@@ -71,9 +126,9 @@ class LandmineOAuthProvider(
         self._clients: dict[str, OAuthClientInformationFull] = {}
         # txn id -> (client_id, params, created_at) for the /authorize -> /login hop
         self._pending: dict[str, tuple[str, AuthorizationParams, float]] = {}
-        self._codes: dict[str, AuthorizationCode] = {}
-        self._access: dict[str, AccessToken] = {}
-        self._refresh: dict[str, RefreshToken] = {}
+        # Best-effort revocation/rotation denylist (lost on restart; a revoked
+        # token then works until its own expiry — acceptable for this use).
+        self._revoked: set[str] = set()
 
     @property
     def auth_settings(self) -> AuthSettings:
@@ -90,7 +145,18 @@ class LandmineOAuthProvider(
     # ---- dynamic client registration --------------------------------------
 
     async def get_client(self, client_id: str) -> OAuthClientInformationFull | None:
-        return self._clients.get(client_id)
+        client = self._clients.get(client_id)
+        if client is not None:
+            return client
+        # Survive restarts: synthesize a public client so a still-valid (signed)
+        # refresh token keeps working after the in-memory registry is gone. Empty
+        # redirect_uris is fine for /token; a fresh /authorize re-registers and
+        # repopulates the real entry (with its redirect URIs) for that flow.
+        return OAuthClientInformationFull(
+            client_id=client_id, redirect_uris=[],
+            token_endpoint_auth_method="none",
+            grant_types=["authorization_code", "refresh_token"],
+            response_types=["code"])
 
     async def register_client(self, client_info: OAuthClientInformationFull) -> None:
         self._clients[client_info.client_id] = client_info
@@ -133,17 +199,17 @@ class LandmineOAuthProvider(
             return HTMLResponse(_login_html(txn, "Incorrect password."), status_code=401)
 
         client_id, params = pending
-        code = secrets.token_urlsafe(32)
-        self._codes[code] = AuthorizationCode(
-            code=code,
-            scopes=params.scopes or [_SCOPE],
-            expires_at=time.time() + _AUTH_CODE_TTL,
-            client_id=client_id,
-            code_challenge=params.code_challenge,
-            redirect_uri=params.redirect_uri,
-            redirect_uri_provided_explicitly=params.redirect_uri_provided_explicitly,
-            resource=params.resource,
-        )
+        code = _sign({
+            "typ": "code",
+            "sub": client_id,
+            "scopes": params.scopes or [_SCOPE],
+            "rdu": str(params.redirect_uri),
+            "rde": bool(params.redirect_uri_provided_explicitly),
+            "cc": params.code_challenge,
+            "res": params.resource,
+            "exp": int(time.time()) + _AUTH_CODE_TTL,
+            "jti": secrets.token_urlsafe(8),
+        })
         location = construct_redirect_uri(str(params.redirect_uri), code=code,
                                           state=params.state)
         return RedirectResponse(location, status_code=302)
@@ -157,57 +223,56 @@ class LandmineOAuthProvider(
     async def load_authorization_code(
             self, client: OAuthClientInformationFull,
             authorization_code: str) -> AuthorizationCode | None:
-        code = self._codes.get(authorization_code)
-        if code is None or code.client_id != client.client_id:
+        p = _verify(authorization_code, "code")
+        if p is None or p["sub"] != client.client_id:
             return None
-        return code
+        return AuthorizationCode(
+            code=authorization_code,
+            scopes=p["scopes"],
+            expires_at=p["exp"],
+            client_id=p["sub"],
+            code_challenge=p["cc"],
+            redirect_uri=AnyUrl(p["rdu"]),
+            redirect_uri_provided_explicitly=p["rde"],
+            resource=p.get("res"),
+        )
 
     async def exchange_authorization_code(
             self, client: OAuthClientInformationFull,
             authorization_code: AuthorizationCode) -> OAuthToken:
-        # One-time use: drop the code as it is redeemed.
-        self._codes.pop(authorization_code.code, None)
         return self._issue(client.client_id, authorization_code.scopes)
 
     async def load_refresh_token(self, client: OAuthClientInformationFull,
                                  refresh_token: str) -> RefreshToken | None:
-        token = self._refresh.get(refresh_token)
-        if token is None or token.client_id != client.client_id:
+        p = _verify(refresh_token, "rt")
+        if p is None or p["sub"] != client.client_id or refresh_token in self._revoked:
             return None
-        return token
+        return RefreshToken(token=refresh_token, client_id=p["sub"],
+                            scopes=p["scopes"], expires_at=p["exp"])
 
     async def exchange_refresh_token(self, client: OAuthClientInformationFull,
                                      refresh_token: RefreshToken,
                                      scopes: list[str]) -> OAuthToken:
-        # Rotate both tokens (the old refresh token is consumed).
-        self._refresh.pop(refresh_token.token, None)
-        granted = scopes or refresh_token.scopes
-        return self._issue(client.client_id, granted)
+        # Rotate: best-effort revoke the old refresh token, issue a fresh pair.
+        self._revoked.add(refresh_token.token)
+        return self._issue(client.client_id, scopes or refresh_token.scopes)
 
     async def load_access_token(self, token: str) -> AccessToken | None:
-        access = self._access.get(token)
-        if access is None:
+        p = _verify(token, "at")
+        if p is None or token in self._revoked:
             return None
-        if access.expires_at is not None and access.expires_at < time.time():
-            self._access.pop(token, None)
-            return None
-        return access
+        return AccessToken(token=token, client_id=p["sub"], scopes=p["scopes"],
+                           expires_at=p["exp"])
 
     async def revoke_token(self, token: AccessToken | RefreshToken) -> None:
-        # Revoke both sides regardless of which was presented.
-        self._access.pop(token.token, None)
-        self._refresh.pop(token.token, None)
+        self._revoked.add(token.token)
 
     def _issue(self, client_id: str, scopes: list[str]) -> OAuthToken:
         now = int(time.time())
-        access = secrets.token_urlsafe(32)
-        refresh = secrets.token_urlsafe(32)
-        self._access[access] = AccessToken(
-            token=access, client_id=client_id, scopes=scopes,
-            expires_at=now + _ACCESS_TTL)
-        self._refresh[refresh] = RefreshToken(
-            token=refresh, client_id=client_id, scopes=scopes,
-            expires_at=now + _REFRESH_TTL)
+        access = _sign({"typ": "at", "sub": client_id, "scopes": scopes,
+                        "exp": now + _ACCESS_TTL, "jti": secrets.token_urlsafe(8)})
+        refresh = _sign({"typ": "rt", "sub": client_id, "scopes": scopes,
+                         "exp": now + _REFRESH_TTL, "jti": secrets.token_urlsafe(8)})
         return OAuthToken(access_token=access, token_type="Bearer",
                           expires_in=_ACCESS_TTL, scope=" ".join(scopes),
                           refresh_token=refresh)
