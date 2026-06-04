@@ -137,10 +137,13 @@ def _set_job(job_id: str, **fields) -> None:
 
 def _run_universe_job(job_id: str, min_cap: float, max_cap: float,
                       as_of: dt.date, settings: Settings) -> None:
+    def _progress(done: int, total: int) -> None:
+        _set_job(job_id, progress={"screened": done, "total": total})
+
     try:
         result = build_and_screen_universe(
             min_cap, max_cap, as_of, settings,
-            max_universe=settings.max_universe_async)
+            max_universe=settings.max_universe_async, on_progress=_progress)
         _set_job(job_id, status="done",
                  result={"as_of": as_of.isoformat(), **result})
     except ScreenError as exc:

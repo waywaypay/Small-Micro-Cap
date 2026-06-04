@@ -93,3 +93,27 @@ def test_run_screen_raises_without_isolation():
     items = [("BADX", "0000000001")]
     with pytest.raises(engine.ScreenError):
         engine._run_screen(items, AS_OF, cfg, fp, ep, settings, skip_errors=False)
+
+
+def test_run_screen_reports_progress():
+    cfg, fp, ep = _cfg_and_providers()
+    settings = engine.Settings(source="fixture")
+    items = sorted(_fixture_universe().items())
+    seen: list[tuple[int, int]] = []
+    engine._run_screen(items, AS_OF, cfg, fp, ep, settings, skip_errors=True,
+                       on_progress=lambda done, total: seen.append((done, total)))
+    # One callback per name, monotonically increasing, with the right total.
+    assert [d for d, _ in seen] == list(range(1, len(items) + 1))
+    assert all(t == len(items) for _, t in seen)
+
+
+def test_summarize_ranks_by_score():
+    rows = engine.summarize_scorecards([
+        {"ticker": "LOW", "total_score": 0.5, "max_severity": "LOW",
+         "results": [{"rule_code": "R1", "status": "FLAG"},
+                     {"rule_code": "R2", "status": "PASS"}]},
+        {"ticker": "HIGH", "total_score": 3.0, "max_severity": "CRITICAL",
+         "results": [{"rule_code": "R2_CASH_RUNWAY", "status": "FLAG"}]},
+    ])
+    assert [r["ticker"] for r in rows] == ["HIGH", "LOW"]
+    assert rows[1]["flags"] == ["R1"]            # only FLAGs, not PASS

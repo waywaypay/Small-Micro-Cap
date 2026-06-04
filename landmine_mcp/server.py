@@ -204,9 +204,13 @@ async def get_universe_result(job_id: str) -> dict[str, Any]:
         job_id: The id returned by start_universe_screen.
 
     Returns:
-        While running: {"status": "running", ...}. When finished:
-        {"status": "done", "result": {"as_of", "universe", "count", "scorecards"}}
-        or {"status": "error", "error", "status_code"} if the screen failed.
+        While running: {"status": "running", "progress": {"screened", "total"}}.
+        When finished: {"status": "done", "result": {...}} where result has
+        "count", "screened", "skipped", and "summary" — a list ranked by
+        total_score (most distressed first) of {ticker, num_flags, max_severity,
+        total_score, flags}. Full per-rule "scorecards" are included only for
+        small results; for a large sweep call run_landmine on a ticker for detail.
+        On failure: {"status": "error", "error", "status_code"}.
     """
     return await _get(f"/universe/jobs/{job_id}")
 

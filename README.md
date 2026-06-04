@@ -518,7 +518,11 @@ web hosts (Claude.ai custom connectors).
 in one call — fine for a narrow slice (e.g. `$50M–$300M`), but a wide band is
 hundreds–thousands of names and won't finish inside a request/connector timeout.
 For the **full screen**, use `start_universe_screen` (returns a `job_id`
-immediately) then poll `get_universe_result(job_id)` until `status` is `"done"`.
+immediately) then poll `get_universe_result(job_id)` until `status` is `"done"`
+(while running it reports `progress: {screened, total}`). The result is a
+`summary` ranked by `total_score` (most distressed first); full per-rule
+scorecards are included only for small results, so call `run_landmine` on any
+flagged ticker for its detail.
 The universe is sized in bulk via the SEC *frames* API (a handful of calls), not
 one company-facts download per filer, so building the band is fast; the long part
 is screening each name, which is why it runs as a background job. The sync route
