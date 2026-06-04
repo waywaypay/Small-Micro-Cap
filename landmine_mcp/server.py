@@ -1,8 +1,13 @@
 """MCP server exposing the landmine screen over the deployed HTTP API.
 
 A thin client: each tool POSTs to the FastAPI service and returns the parsed
-scorecard JSON unchanged, so the MCP surface always matches the API. Transport
-is stdio, so it runs as a local subprocess of an MCP host (e.g. Claude Desktop).
+scorecard JSON unchanged, so the MCP surface always matches the API.
+
+Two transports share these tools:
+* **stdio** (``main`` / ``python -m landmine_mcp.server``) — a local subprocess
+  for desktop MCP hosts (Claude Desktop, IDEs).
+* **streamable HTTP** (``landmine_mcp.web:app``) — a remote server for web hosts
+  (Claude.ai custom connectors). See ``landmine_mcp/web.py``.
 
 Configuration (environment):
   LANDMINE_API_URL  base URL of the deployed service, e.g.
@@ -18,7 +23,10 @@ from typing import Any
 import httpx
 from mcp.server.fastmcp import FastMCP
 
-mcp = FastMCP("landmine")
+# stateless_http + json_response keep the HTTP transport simple and proxy/CDN
+# friendly (no per-session state to pin, plain JSON responses rather than a kept-
+# open SSE stream). They are inert for the stdio transport.
+mcp = FastMCP("landmine", stateless_http=True, json_response=True)
 
 # A single /universe build can fetch many filings server-side; keep the client
 # patient but bounded.
@@ -46,11 +54,15 @@ def _normalize_as_of(as_of: str | None) -> str:
     return str(as_of).strip()
 
 
-def _post(path: str, payload: dict[str, Any]) -> dict[str, Any]:
+async def _post(path: str, payload: dict[str, Any]) -> dict[str, Any]:
+    # Async I/O so the HTTP transport's event loop stays free while a screen
+    # runs server-side (FastMCP runs sync tools inline on the loop, which would
+    # otherwise block every concurrent request behind one slow call).
     url, key = _config()
     try:
-        resp = httpx.post(f"{url}{path}", json=payload,
-                          headers={"X-Api-Key": key}, timeout=_TIMEOUT)
+        async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+            resp = await client.post(f"{url}{path}", json=payload,
+                                     headers={"X-Api-Key": key})
     except httpx.RequestError as exc:
         raise RuntimeError(f"Could not reach landmine-api at {url}{path}: {exc}") \
             from exc
@@ -66,7 +78,7 @@ def _post(path: str, payload: dict[str, Any]) -> dict[str, Any]:
 
 
 @mcp.tool()
-def run_landmine(tickers: list[str], as_of: str | None = None) -> dict[str, Any]:
+async def run_landmine(tickers: list[str], as_of: str | None = None) -> dict[str, Any]:
     """Screen an explicit list of tickers for financial-distress landmines.
 
     Runs the deterministic Tier 1 (numeric XBRL) + Tier 2 (filing-event) screen
@@ -82,12 +94,12 @@ def run_landmine(tickers: list[str], as_of: str | None = None) -> dict[str, Any]
     Returns:
         {"as_of", "count", "scorecards": [...]} from the service.
     """
-    return _post("/run", {"tickers": tickers, "as_of": _normalize_as_of(as_of)})
+    return await _post("/run", {"tickers": tickers, "as_of": _normalize_as_of(as_of)})
 
 
 @mcp.tool()
-def run_universe(min_cap: float, max_cap: float,
-                 as_of: str | None = None) -> dict[str, Any]:
+async def run_universe(min_cap: float, max_cap: float,
+                       as_of: str | None = None) -> dict[str, Any]:
     """Build a market-size-banded universe, then screen every name in it.
 
     Selects filers whose size falls in [min_cap, max_cap] (USD) and runs the
@@ -101,8 +113,8 @@ def run_universe(min_cap: float, max_cap: float,
     Returns:
         {"as_of", "universe", "count", "scorecards": [...]} from the service.
     """
-    return _post("/universe", {"min_cap": min_cap, "max_cap": max_cap,
-                               "as_of": _normalize_as_of(as_of)})
+    return await _post("/universe", {"min_cap": min_cap, "max_cap": max_cap,
+                                     "as_of": _normalize_as_of(as_of)})
 
 
 def main() -> None:
