@@ -86,8 +86,11 @@ def _company(profile: str, i: int, rng: random.Random) -> list[Fact]:
     elif profile == "lowcash_fp":    # transient burn quarter on low cash -> R2 FP
         cash, ocf_q, ocf_y = 6e6, -3e6 * j, 8e6 * j
 
-    I(TOTAL_ASSETS, assets); I(CURRENT_ASSETS, cur_a); I(CURRENT_LIABILITIES, cur_l)
-    I(CASH, cash); I(STOCKHOLDERS_EQUITY, equity)
+    I(TOTAL_ASSETS, assets)
+    I(CURRENT_ASSETS, cur_a)
+    I(CURRENT_LIABILITIES, cur_l)
+    I(CASH, cash)
+    I(STOCKHOLDERS_EQUITY, equity)
     inst.append(Fact(SHARES_OUTSTANDING, _PERIOD, _FILED, sh_now, "10-Q", ""))
     inst.append(Fact(SHARES_OUTSTANDING, _PRIOR, _PRIOR_FILED, sh_prior, "10-Q", ""))
     inst.append(Fact(TOTAL_ASSETS, _FY_END, _FY_FILED, assets * 1.02, "10-K", ""))

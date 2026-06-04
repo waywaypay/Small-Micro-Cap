@@ -8,6 +8,7 @@ safe to (config, ticker maps) and side-effect-free per request.
 from __future__ import annotations
 
 import datetime as dt
+import json
 import os
 import threading
 from dataclasses import dataclass
@@ -18,14 +19,20 @@ from landmine.config import Config
 from landmine.data.provider import FixtureProvider, HttpCompanyFactsProvider
 from landmine.persistence import scorecards_to_payload
 from landmine.scoring import score_company
-from landmine.universe import (PublicFloatSizeProvider, StaticSizeProvider,
-                               build_universe, load_company_tickers)
+from landmine.universe import (PublicFloatSizeProvider, SizeProvider,
+                               StaticSizeProvider, build_universe,
+                               load_company_tickers)
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def _path(*parts: str) -> str:
     return os.path.join(_ROOT, *parts)
+
+
+def _read_text(path: str) -> str:
+    with open(path, encoding="utf-8") as fh:
+        return fh.read()
 
 
 class ScreenError(Exception):
@@ -138,8 +145,7 @@ def _sec_ticker_map(settings: Settings) -> dict[str, str]:
             records = load_company_tickers(user_agent=settings.sec_user_agent)
         else:
             path = settings.company_tickers_fixture
-            records = load_company_tickers(
-                fetch=lambda _u: open(path, encoding="utf-8").read())
+            records = load_company_tickers(fetch=lambda _u: _read_text(path))
     except Exception:
         records = []
     mapping = {r.ticker.upper(): r.cik for r in records}
@@ -188,7 +194,7 @@ def _score_one(ticker: str, cik: Optional[str], as_of: dt.date, cfg: Config,
             facts = fb.get_company_facts(ticker, cik)
         except Exception as exc:  # genuinely no data for this name
             raise ScreenError(
-                f"No facts available for {ticker}: {exc}", status_code=502)
+                f"No facts available for {ticker}", status_code=502) from exc
     events = None
     if eprov is not None and eprov.has(ticker):
         events = eprov.get_events(ticker, cik)
@@ -222,6 +228,7 @@ def build_and_screen_universe(min_cap: float, max_cap: float, as_of: dt.date,
         raise ScreenError("min_cap must be <= max_cap")
 
     # Records: live SEC list when available, otherwise the frozen fixture list.
+    size: SizeProvider
     if settings.effective_source == "companyfacts" and settings.sec_user_agent:
         records = load_company_tickers(user_agent=settings.sec_user_agent)
         size = PublicFloatSizeProvider(
@@ -230,10 +237,8 @@ def build_and_screen_universe(min_cap: float, max_cap: float, as_of: dt.date,
             as_of)
     else:
         path = settings.company_tickers_fixture
-        records = load_company_tickers(
-            fetch=lambda _u: open(path, encoding="utf-8").read())
-        import json
-        with open(settings.sizes_fixture, "r", encoding="utf-8") as fh:
+        records = load_company_tickers(fetch=lambda _u: _read_text(path))
+        with open(settings.sizes_fixture, encoding="utf-8") as fh:
             raw = {k: v for k, v in json.load(fh).items()
                    if not k.startswith("_")}
         size = StaticSizeProvider(raw)

@@ -312,17 +312,20 @@ def cmd_language_batch(args) -> int:
 
 def cmd_universe(args) -> int:
     import datetime as _dt
-    from .universe import (PublicFloatSizeProvider, StaticSizeProvider,
-                          build_universe, load_company_tickers, write_universe_yaml)
+    from .universe import (PublicFloatSizeProvider, SizeProvider,
+                          StaticSizeProvider, build_universe,
+                          load_company_tickers, write_universe_yaml)
 
     if args.source == "fixture":
-        path = args.company_tickers
-        records = load_company_tickers(fetch=lambda _u: open(path, encoding="utf-8").read())
+        with open(args.company_tickers, encoding="utf-8") as fh:
+            ct_text = fh.read()
+        records = load_company_tickers(fetch=lambda _u: ct_text)
     else:
         records = load_company_tickers(user_agent=args.user_agent)
 
+    size: SizeProvider
     if args.size_source == "static":
-        with open(args.sizes, "r", encoding="utf-8") as fh:
+        with open(args.sizes, encoding="utf-8") as fh:
             raw = {k: v for k, v in json.load(fh).items() if not k.startswith("_")}
         size = StaticSizeProvider(raw)
     else:  # public-float via companyfacts
@@ -428,29 +431,29 @@ def build_parser() -> argparse.ArgumentParser:
     b.add_argument("--json", default=os.path.join(_ROOT, "out", "backtest.json"))
     b.set_defaults(func=cmd_backtest)
 
-    l = sub.add_parser("language",
+    lang = sub.add_parser("language",
                        help="Tier 3 advisory language signals (non-deterministic)")
-    l.add_argument("--ticker", required=True)
-    l.add_argument("--as-of", default="2026-06-02")
-    l.add_argument("--source", choices=["cached", "claude", "claude-code"],
+    lang.add_argument("--ticker", required=True)
+    lang.add_argument("--as-of", default="2026-06-02")
+    lang.add_argument("--source", choices=["cached", "claude", "claude-code"],
                    default="cached",
                    help="cached = frozen/offline (default); claude = Anthropic SDK "
                         "(needs ANTHROPIC_API_KEY); claude-code = this Claude Code "
                         "session's plan via the `claude` CLI")
-    l.add_argument("--model", default="",
+    lang.add_argument("--model", default="",
                    help="model id/alias; blank uses the session/provider default")
-    l.add_argument("--universe", default=os.path.join(_ROOT, "config", "universe.yaml"))
-    l.add_argument("--filing-source", choices=["fixture", "edgar"], default="fixture",
+    lang.add_argument("--universe", default=os.path.join(_ROOT, "config", "universe.yaml"))
+    lang.add_argument("--filing-source", choices=["fixture", "edgar"], default="fixture",
                    help="fixture = frozen excerpts (default); edgar = fetch from SEC")
-    l.add_argument("--user-agent", default="Deerpark Research max@deerpark.io")
-    l.add_argument("--filings", default=os.path.join(_ROOT, "tests", "fixtures", "filings"))
-    l.add_argument("--tier3-cache", default=os.path.join(_ROOT, "tests", "fixtures", "tier3"))
-    l.add_argument("--max-input-tokens", type=int, default=0,
+    lang.add_argument("--user-agent", default="Deerpark Research max@deerpark.io")
+    lang.add_argument("--filings", default=os.path.join(_ROOT, "tests", "fixtures", "filings"))
+    lang.add_argument("--tier3-cache", default=os.path.join(_ROOT, "tests", "fixtures", "tier3"))
+    lang.add_argument("--max-input-tokens", type=int, default=0,
                    help="cap filing text sent to the LLM (0 = no cap)")
-    l.add_argument("--no-select", action="store_true",
+    lang.add_argument("--no-select", action="store_true",
                    help="send full text instead of only flag-relevant passages")
-    l.add_argument("--json", default="")
-    l.set_defaults(func=cmd_language)
+    lang.add_argument("--json", default="")
+    lang.set_defaults(func=cmd_language)
 
     lb = sub.add_parser("language-batch",
                         help="Tier 3 over many flagged names in one batched job")

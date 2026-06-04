@@ -9,11 +9,20 @@ rules structurally cannot see.
 """
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, Protocol
 
 from .config import RuleConfig
 from .events import Event, EventsView, EventType
 from .models import Citation, RuleResult, Severity, Status
+
+
+class T2Rule(Protocol):
+    """A Tier-2 event rule: a stable ``code`` plus ``evaluate`` over an EventsView."""
+
+    code: str
+
+    def evaluate(self, view: EventsView, cfg: RuleConfig) -> RuleResult:
+        ...
 
 
 def _cite(e: Event) -> Citation:
@@ -128,7 +137,7 @@ class DilutionEventsRule:
                      cites, float(n))
 
 
-ALL_T2_RULES = [
+ALL_T2_RULES: list[T2Rule] = [
     GoingConcernRule(),
     MaterialWeaknessRule(),
     RestatementRule(),

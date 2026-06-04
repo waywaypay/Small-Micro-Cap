@@ -6,13 +6,14 @@ but keep their slot in the canonical ordering.
 """
 from __future__ import annotations
 
+from .base import Rule
 from .cash_runway import CashRunwayRule
 from .dilution import DilutionRule
 from .earnings_quality import EarningsQualityRule
 from .liquidity import LiquidityRule
 from .negative_equity import NegativeEquityRule
 
-ALL_RULES = [
+ALL_RULES: list[Rule] = [
     DilutionRule(),         # R1
     CashRunwayRule(),       # R2
     NegativeEquityRule(),   # R3

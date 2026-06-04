@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import datetime as dt
 from typing import Optional
-from typing import Optional
 
 from .config import Config
 from .data.facts import CompanyFacts

@@ -101,7 +101,6 @@ def calibrate(labels: dict, universe: dict, cfg: Config,
     for rule in ALL_RULES:
         fired = [r for r in rows if rule.code in r["flagged_rules"]]
         tp = sum(1 for r in fired if r["actual_distress"])
-        fp = len(fired) - tp
         evaluated = [r for r in rows
                      if r["rule_status"].get(rule.code) is not Status.INSUFFICIENT_DATA]
         per_rule[rule.code] = {

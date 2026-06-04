@@ -16,11 +16,10 @@ import hmac
 from typing import List, Optional, Union
 
 from fastapi import Depends, FastAPI, Header, HTTPException
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from .engine import (ScreenError, Settings, build_and_screen_universe,
-                     get_settings, screen_tickers)
+from .engine import (ScreenError, build_and_screen_universe, get_settings,
+                     screen_tickers)
 
 app = FastAPI(
     title="Landmine Screen API",

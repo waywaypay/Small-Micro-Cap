@@ -7,7 +7,9 @@ services:
     runtime: python
     plan: free
     region: oregon
-    branch: claude/upbeat-hamilton-7lFsZ
+    # No ``branch`` key on purpose: Render tracks the repository's default
+    # branch (set in the dashboard). Pinning a feature/session branch here makes
+    # auto-deploy silently track the wrong (or a deleted) branch.
     buildCommand: "pip install -e ."
     startCommand: "uvicorn landmine_api.app:app --host 0.0.0.0 --port $PORT"
     healthCheckPath: /health

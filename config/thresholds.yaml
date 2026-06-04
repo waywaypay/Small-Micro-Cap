@@ -90,7 +90,10 @@ rules:
   T2_LATE_FILING:
     enabled: true
     # NT 10-K/10-Q within ~18 months is a high-precision distress signal.
-    window_days: 540
+    # NB: the binary-event rules read ``recency_days`` (the dilution-cluster rule
+    # is the one that reads ``window_days``); this MUST be ``recency_days`` or the
+    # rule silently falls back to the 400-day default and ages events out early.
+    recency_days: 540
     severity: HIGH
     severity_score: 0.7
   T2_RESTATEMENT:

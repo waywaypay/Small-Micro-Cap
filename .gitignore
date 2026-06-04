@@ -10,3 +10,8 @@ out/pit_*.json
 out/companyfacts_cache/
 .venv/
 dist/
+
+# local environment / secrets — never commit the API key or SEC user-agent
+.env
+.env.*
+*.env

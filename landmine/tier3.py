@@ -22,6 +22,7 @@ import datetime as dt
 import json
 import os
 import re
+import unicodedata
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional, Protocol
@@ -115,14 +116,44 @@ class AdvisoryReport:
 
 
 # --- grounding -------------------------------------------------------------
+# EDGAR/HTML prose freely varies punctuation that should compare equal: curly
+# quotes, en/em dashes, and non-breaking/odd spaces. Fold them so a model that
+# echoes ASCII (or vice-versa) still grounds, and so homoglyph variants of the
+# same phrase can't be treated as different text.
+_PUNCT_FOLD = {
+    "‘": "'", "’": "'", "‚": "'", "‛": "'", "′": "'",
+    "“": '"', "”": '"', "„": '"', "‟": '"', "″": '"',
+    "‐": "-", "‑": "-", "‒": "-", "–": "-", "—": "-",
+    "―": "-", "−": "-",
+    " ": " ", " ": " ", " ": " ", " ": " ", "​": "",
+}
+_FOLD_TABLE = str.maketrans(_PUNCT_FOLD)
+
+# Grounding proves a quote is *verbatim* from the source (audit provenance); it
+# cannot prove relevance, so we additionally require the quote to be specific
+# enough that it can't trivially match filing boilerplate. Floors are calibrated
+# to keep legitimate short signals (e.g. "has a working capital deficiency",
+# 32 chars / 5 words) while rejecting generic fragments ("liquidity").
+_MIN_QUOTE_CHARS = 20
+_MIN_QUOTE_TOKENS = 4
+
+
 def _norm(s: str) -> str:
+    s = unicodedata.normalize("NFKC", s).translate(_FOLD_TABLE)
     return re.sub(r"\s+", " ", s).strip().lower()
 
 
 def quote_is_grounded(quote: str, source_text: str) -> bool:
-    """Deterministic check that ``quote`` appears verbatim (whitespace-normalized)."""
+    """Deterministic check that ``quote`` appears verbatim in the source.
+
+    Normalizes Unicode/whitespace/punctuation on both sides, and requires the
+    quote to clear minimum length and word-count floors so a hallucinated signal
+    cannot be grounded on a trivially-common fragment.
+    """
     q = _norm(quote)
-    return len(q) >= 8 and q in _norm(source_text)
+    if len(q) < _MIN_QUOTE_CHARS or len(q.split()) < _MIN_QUOTE_TOKENS:
+        return False
+    return q in _norm(source_text)
 
 
 # --- the injectable model interface ----------------------------------------
