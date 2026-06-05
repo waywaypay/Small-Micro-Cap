@@ -208,3 +208,21 @@ def test_quote_grounding_normalizes_whitespace():
                              "...raises substantial   doubt about\nits ability...")
     assert not quote_is_grounded("tiny", "irrelevant text")          # too short
     assert not quote_is_grounded("not present anywhere here", "other text")
+
+
+def test_grounding_rejects_generic_short_quote():
+    # Grounding is the only hallucination defense, so a real-but-trivial fragment
+    # must not be enough to ground a signal — the quote has to be specific.
+    src = ("The Company faces risks to its liquidity. "
+           "The company may need to raise additional capital.")
+    assert not quote_is_grounded("liquidity", src)
+    assert not quote_is_grounded("the company", src)
+
+
+def test_grounding_tolerates_unicode_punctuation_variants():
+    # EDGAR prose carries curly quotes / non-breaking spaces; a model echoing the
+    # ASCII form (or vice-versa) must still ground, so legitimate signals are not
+    # silently dropped on a punctuation mismatch.
+    src = "the Company’s ability to continue as a going concern is in doubt"
+    assert quote_is_grounded(
+        "the company's ability to continue as a going concern", src)

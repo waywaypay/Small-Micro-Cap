@@ -167,3 +167,40 @@ def test_missing_data_is_insufficient_not_pass():
     # As-of a date before WKHS's modern filings, liquidity inputs are absent.
     r = _result(_card("WKHS", as_of=dt.date(2025, 6, 1)), "R4_LIQUIDITY")
     assert r.status is Status.INSUFFICIENT_DATA
+
+
+def test_dilution_derived_zero_shares_degrades_not_crashes():
+    # MCP-path regression: a period with Net Income == 0 implies a 0 derived
+    # share count (shares = NetIncome / EPS), which previously divided by zero
+    # and crashed the whole scorecard. The rule must degrade gracefully instead.
+    from landmine.concepts import EPS_BASIC, NET_INCOME
+    from landmine.data.facts import CompanyFacts, Fact
+    from landmine.models import Confidence
+    from landmine.rules.dilution import DilutionRule
+
+    def _facts(rows):
+        # rows: (period_end, filed, net_income); EPS fixed at 0.5 and no
+        # SHARES_OUTSTANDING -> forces the derived NI/EPS (LOW-confidence) path.
+        out = []
+        for pe, filed, ni in rows:
+            out.append(Fact(NET_INCOME, pe, filed, ni, "10-K", "Annual"))
+            out.append(Fact(EPS_BASIC, pe, filed, 0.5, "10-K", "Annual"))
+        return CompanyFacts("ZTEST", "0000000001", out)
+
+    rc = CFG.rule("R1_DILUTION")
+    rule = DilutionRule()
+
+    # (a) zero at the prior (YoY) period -> that point drops out, <2 remain.
+    two = _facts([(dt.date(2025, 12, 31), dt.date(2026, 2, 15), 100e6),
+                  (dt.date(2024, 12, 31), dt.date(2025, 2, 15), 0.0)])
+    r = rule.evaluate(two.as_of(dt.date(2026, 6, 2)), rc)   # must not raise
+    assert r.status is Status.INSUFFICIENT_DATA
+
+    # (b) zero in a middle period -> excluded; YoY still computes a clean flag.
+    three = _facts([(dt.date(2025, 12, 31), dt.date(2026, 2, 15), 200e6),
+                    (dt.date(2025, 6, 30), dt.date(2025, 8, 15), 0.0),
+                    (dt.date(2024, 12, 31), dt.date(2025, 2, 15), 100e6)])
+    r3 = rule.evaluate(three.as_of(dt.date(2026, 6, 2)), rc)  # must not raise
+    assert r3.status is Status.FLAG
+    assert r3.confidence is Confidence.LOW
+    assert r3.computed_value > 0.25
