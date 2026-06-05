@@ -50,7 +50,13 @@ class DilutionRule:
             e = eps[pe].value
             if abs(e) < min_abs_eps:
                 continue
-            shares[pe] = abs(ni[pe].value / e)
+            implied = abs(ni[pe].value / e)
+            if implied <= 0.0:
+                # Net income of exactly 0 implies a 0 share count, which is
+                # non-physical and would divide-by-zero downstream. Treat it as
+                # un-derivable for this period rather than crash or flag.
+                continue
+            shares[pe] = implied
             cites[pe] = [citation(ni[pe]), citation(eps[pe])]
         return (shares, "derived: NetIncome / EPSBasic (split-adjusted)",
                 cites, Confidence.LOW)
@@ -87,7 +93,7 @@ class DilutionRule:
             window_pes = sorted(pe for pe in periods if prior <= pe <= latest)
             for a, b in zip(window_pes, window_pes[1:], strict=False):
                 va, vb = shares[a], shares[b]
-                if va > 0 and (vb / va > max_jump or va / vb > max_jump):
+                if va > 0 and vb > 0 and (vb / va > max_jump or va / vb > max_jump):
                     return insufficient(
                         self.code,
                         [f"noisy_derived_share_series (jump >{max_jump}x near "

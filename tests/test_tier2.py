@@ -182,3 +182,19 @@ def test_tier2_is_deterministic():
                       dt.date(2026, 6, 2), CFG,
                       events=EVP.get_events("WKHS", "0001425287")).to_dict()
     assert a == b
+
+
+def test_late_filing_uses_configured_540_day_window():
+    # Regression: T2_LATE_FILING must read its configured recency window (540d),
+    # not silently fall back to the 400-day default (the bug: config used the key
+    # ``window_days`` while the binary-event rule reads ``recency_days``). WKHS's
+    # latest NT 10-Q is filed 2025-08-14; 474 days later is inside 540 but past
+    # the old 400-day default — so it discriminates the fix.
+    filed = dt.date(2025, 8, 14)
+    within = _res(_card("WKHS", "0001425287", filed + dt.timedelta(days=474)),
+                  "T2_LATE_FILING")
+    assert within.status is Status.FLAG
+    assert within.threshold.get("recency_days") == 540   # audit trail is honest
+    aged = _res(_card("WKHS", "0001425287", filed + dt.timedelta(days=541)),
+                "T2_LATE_FILING")
+    assert aged.status is Status.PASS
